@@ -108,6 +108,15 @@ public class ResultConsumer implements ApplicationRunner {
             case "done" -> {
                 if (task != null) {
                     task.setStatus("done");
+                    try {
+                        JsonNode node = objectMapper.readTree(content);
+                        task.setLatencyMs(node.path("latencyMs").asLong(0));
+                        task.setTokenIn(node.path("tokenIn").asLong(0));
+                        task.setTokenOut(node.path("tokenOut").asLong(0));
+                        task.setCostCny(node.path("costCny").asDouble(0));
+                    } catch (Exception ignored) {
+                        // metrics are optional
+                    }
                     task.setUpdatedAt(Instant.now());
                     taskRepository.save(task);
                 }

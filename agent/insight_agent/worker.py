@@ -38,6 +38,8 @@ def run_worker() -> None:
             _publish(streams, task.taskId, "status", "running")
             try:
                 final_answer = None
+                chart_spec = None
+                usage: list[dict] = []
                 for update in graph.stream(
                     {
                         "question": task.message,
@@ -53,14 +55,27 @@ def run_worker() -> None:
                                 _publish(streams, task.taskId, "tool_call", call)
                         if node == "answer":
                             final_answer = payload.get("final_answer")
+                            chart_spec = payload.get("chart_spec")
+                        usage.extend(payload.get("usage", []))
 
                 if final_answer:
-                    _publish(streams, task.taskId, "result", {"answer": final_answer})
+                    result_payload = {"answer": final_answer}
+                    if chart_spec:
+                        result_payload["chartSpec"] = chart_spec
+                        _publish(streams, task.taskId, "chart", chart_spec)
+                    _publish(streams, task.taskId, "result", result_payload)
+                    token_in = sum(item.get("prompt_tokens", 0) for item in usage)
+                    token_out = sum(item.get("completion_tokens", 0) for item in usage)
                     _publish(
                         streams,
                         task.taskId,
                         "done",
-                        {"latencyMs": int((time.time() - started) * 1000)},
+                        {
+                            "latencyMs": int((time.time() - started) * 1000),
+                            "tokenIn": token_in,
+                            "tokenOut": token_out,
+                            "costCny": round(token_in * 0.000001 + token_out * 0.000002, 6),
+                        },
                     )
                 else:
                     _publish(streams, task.taskId, "error", "Agent 未生成回答")

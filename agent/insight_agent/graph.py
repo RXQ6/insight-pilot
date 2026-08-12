@@ -21,6 +21,7 @@ class AgentState(TypedDict):
     final_answer: str | None
     errors: Annotated[list, operator.add]
     tool_calls: Annotated[list, operator.add]
+    usage: Annotated[list, operator.add]
     reflect_note: str | None
 
 

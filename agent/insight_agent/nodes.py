@@ -4,7 +4,7 @@ import re
 from langchain_openai import ChatOpenAI
 
 from .config import settings
-from .prompts import ANSWER_SYSTEM, INTENT_SYSTEM, PLAN_SYSTEM, SQL_SYSTEM
+from .prompts import ANSWER_SYSTEM, CHART_SYSTEM, INTENT_SYSTEM, PLAN_SYSTEM, SQL_SYSTEM
 from .tools import run_tool
 
 
@@ -29,6 +29,39 @@ def _extract_sql(text: str) -> str | None:
     return None
 
 
+def _usage(response) -> list[dict]:
+    metadata = getattr(response, "usage_metadata", None)
+    if not metadata:
+        metadata = (getattr(response, "response_metadata", None) or {}).get("token_usage")
+    if metadata:
+        prompt_tokens = metadata.get("prompt_tokens") or metadata.get("input_tokens") or 0
+        completion_tokens = metadata.get("completion_tokens") or metadata.get("output_tokens") or 0
+        return [
+            {
+                "prompt_tokens": int(prompt_tokens),
+                "completion_tokens": int(completion_tokens),
+            }
+        ]
+    return []
+
+
+def _generate_chart_spec(question: str, context: str) -> tuple[dict | None, list[dict]]:
+    response = _llm().invoke(
+        [
+            {"role": "system", "content": CHART_SYSTEM},
+            {"role": "user", "content": f"问题：{question}\n查询结果：{context[:12_000]}"},
+        ]
+    )
+    usage = _usage(response)
+    try:
+        parsed = json.loads((response.content or "").strip().strip("```json").strip("```"))
+    except json.JSONDecodeError:
+        return None, usage
+    if parsed.get("type") in ("bar", "line", "pie", "scatter") and parsed.get("xAxis") and parsed.get("series"):
+        return parsed, usage
+    return None, usage
+
+
 def intent_classify(state: dict) -> dict:
     response = _llm().invoke(
         [
@@ -39,7 +72,7 @@ def intent_classify(state: dict) -> dict:
     intent = (response.content or "").strip().lower()
     if intent not in ("data_analysis", "knowledge_qa", "clarify"):
         intent = "data_analysis"
-    return {"intent": intent}
+    return {"intent": intent, "usage": _usage(response)}
 
 
 def plan(state: dict) -> dict:
@@ -54,7 +87,12 @@ def plan(state: dict) -> dict:
         for line in (response.content or "").splitlines()
         if line.strip() and not line.strip().startswith(("#", "```"))
     ][:5]
-    return {"plan": steps or [state["question"]], "current_step": 0, "step_count": 0}
+    return {
+        "plan": steps or [state["question"]],
+        "current_step": 0,
+        "step_count": 0,
+        "usage": _usage(response),
+    }
 
 
 def agent_step(state: dict) -> dict:
@@ -67,6 +105,7 @@ def agent_step(state: dict) -> dict:
         return {
             "query_result": [{"source": "knowledge", "text": result}],
             "step_count": step_count + 1,
+            "usage": [],
         }
 
     schema = run_tool("get_schema", {})
@@ -81,7 +120,7 @@ def agent_step(state: dict) -> dict:
     )
     sql = _extract_sql(response.content or "")
     if not sql:
-        return {"errors": ["未能生成 SQL"], "step_count": step_count + 1}
+        return {"errors": ["未能生成 SQL"], "step_count": step_count + 1, "usage": _usage(response)}
 
     result = run_tool("query_database", {"sql": sql})
     return {
@@ -91,6 +130,7 @@ def agent_step(state: dict) -> dict:
             {"name": "query_database", "arguments": {"sql": sql}, "status": "success"}
         ],
         "step_count": step_count + 1,
+        "usage": _usage(response),
     }
 
 
@@ -102,7 +142,7 @@ def reflect(state: dict) -> dict:
 
 def answer(state: dict) -> dict:
     if state.get("final_answer"):
-        return {"final_answer": state["final_answer"]}
+        return {"final_answer": state["final_answer"], "chart_spec": state.get("chart_spec"), "usage": []}
     context = json.dumps(state.get("query_result", []), ensure_ascii=False, default=str)
     response = _llm().invoke(
         [
@@ -110,7 +150,16 @@ def answer(state: dict) -> dict:
             {"role": "user", "content": f"问题：{state['question']}\n查询结果：{context[:12_000]}"},
         ]
     )
-    return {"final_answer": response.content or "无法生成回答"}
+    usage = _usage(response)
+    chart_spec = None
+    chart_usage = []
+    if state.get("query_result"):
+        chart_spec, chart_usage = _generate_chart_spec(state["question"], context)
+    return {
+        "final_answer": response.content or "无法生成回答",
+        "chart_spec": chart_spec,
+        "usage": usage + chart_usage,
+    }
 
 
 def route_after_intent(state: dict) -> str:
