@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: insight-pilot
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/insight}
+    username: ${DB_USER:insight}
+    password: ${DB_PASSWORD:insight}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jackson:
+    time-zone: UTC
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:insight-pilot-dev-secret-change-me-0123456789}
+    expire-hours: ${JWT_EXPIRE_HOURS:24}
+  redis:
+    task-input-stream: ${TASK_INPUT_STREAM:task:input}
+    task-result-stream: ${TASK_RESULT_STREAM:task:result}
+    task-dlq-stream: ${TASK_DLQ_STREAM:task:dlq}
+    result-group: ${RESULT_GROUP:java-control-plane}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.insightpilot: INFO

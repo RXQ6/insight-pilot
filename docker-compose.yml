@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-insight}
+      POSTGRES_USER: ${POSTGRES_USER:-insight}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insight}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insight"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  java-api:
+    build: ./java
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/insight
+      DB_USER: insight
+      DB_PASSWORD: insight
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  agent-worker:
+    build: ./agent
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_DSN: postgresql://insight:insight@db:5432/insight
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - java-api
+
+volumes:
+  db_data:
