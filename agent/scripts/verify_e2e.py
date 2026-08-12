@@ -1,0 +1,47 @@
+import json
+import time
+
+import requests
+
+BASE = "http://localhost:8080/api"
+
+
+def post(path, payload, headers=None):
+    response = requests.post(BASE + path, json=payload, headers=headers or {}, timeout=10)
+    response.raise_for_status()
+    return response.json()
+
+
+def get(path, headers):
+    response = requests.get(BASE + path, headers=headers, timeout=10)
+    response.raise_for_status()
+    return response.json()
+
+
+def main():
+    try:
+        post("/auth/register", {"username": "smoke", "password": "pass1234"})
+    except requests.HTTPError:
+        pass
+
+    login = post("/auth/login", {"username": "smoke", "password": "pass1234"})
+    headers = {"Authorization": f"Bearer {login['token']}"}
+    session = post("/sessions", {"title": "真实问答验证"}, headers)
+    task = post(
+        "/tasks",
+        {"sessionId": session["sessionId"], "message": "2026年4月订单总数是多少？"},
+        headers,
+    )
+    print("taskId:", task["taskId"])
+
+    for _ in range(30):
+        time.sleep(2)
+        status = get(f"/tasks/{task['taskId']}", headers)
+        if status["status"] in ("done", "error"):
+            print(json.dumps(status, ensure_ascii=False, indent=2))
+            return
+    print("timeout")
+
+
+if __name__ == "__main__":
+    main()
