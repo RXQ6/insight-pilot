@@ -119,7 +119,7 @@ public class TaskService {
         }
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
-        taskProducer.publishEvent(taskId, "status", task.getStatus());
+        taskProducer.resume(taskId, request.approved());
         auditService.record(userId, "approve_task", taskId, null);
         return toResponse(task);
     }

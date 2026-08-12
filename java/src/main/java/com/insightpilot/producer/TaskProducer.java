@@ -43,4 +43,12 @@ public class TaskProducer {
         payload.put("ts", String.valueOf(System.currentTimeMillis()));
         redisTemplate.opsForStream().add(StreamRecords.string(payload).withStreamKey(resultStream));
     }
+
+    public void resume(String taskId, boolean approved) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("taskId", taskId);
+        payload.put("action", "resume");
+        payload.put("approved", String.valueOf(approved));
+        redisTemplate.opsForStream().add(StreamRecords.string(payload).withStreamKey(inputStream));
+    }
 }

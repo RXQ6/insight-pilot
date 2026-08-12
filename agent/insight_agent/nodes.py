@@ -2,6 +2,7 @@ import json
 import re
 
 from langchain_openai import ChatOpenAI
+from langgraph.types import interrupt
 
 from .config import settings
 from .prompts import ANSWER_SYSTEM, CHART_SYSTEM, INTENT_SYSTEM, PLAN_SYSTEM, SQL_SYSTEM
@@ -150,6 +151,16 @@ def agent_step(state: dict) -> dict:
     sql = _extract_sql(response.content or "")
     if not sql:
         return {"errors": ["未能生成 SQL"], "step_count": step_count + 1, "usage": _usage(response)}
+
+    needs_approval = (
+        any(keyword in state["question"] for keyword in ("导出", "全表", "所有字段所有行", "全部记录"))
+        or (
+            re.search(r"\bselect\s+\*\b", sql, re.I)
+            and not re.search(r"\blimit\b", sql, re.I)
+        )
+    )
+    if needs_approval:
+        interrupt({"tool": "query_database", "reason": "该查询可能返回全表数据，需要人工确认后执行"})
 
     result = run_tool("query_database", {"sql": sql})
     return {

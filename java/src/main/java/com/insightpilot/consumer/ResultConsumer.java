@@ -105,6 +105,13 @@ public class ResultConsumer implements ApplicationRunner {
                     taskRepository.save(task);
                 }
             }
+            case "approval_required" -> {
+                if (task != null) {
+                    task.setStatus("waiting_approval");
+                    task.setUpdatedAt(Instant.now());
+                    taskRepository.save(task);
+                }
+            }
             case "done" -> {
                 if (task != null) {
                     task.setStatus("done");
