@@ -27,6 +27,12 @@ public class EvalRun {
     @Column(name = "run_id", length = 64)
     private String runId;
 
+    @Column(nullable = false)
+    private long total;
+
+    @Column(nullable = false)
+    private long passed;
+
     @Column(name = "case_id")
     private Long caseId;
 

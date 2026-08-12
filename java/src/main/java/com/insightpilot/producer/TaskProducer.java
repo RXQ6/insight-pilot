@@ -4,7 +4,7 @@ import com.insightpilot.entity.Task;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.stream.StreamRecords;
+import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -31,7 +31,7 @@ public class TaskProducer {
         payload.put("maxSteps", "8");
         payload.put("costCapCny", "0.2");
         payload.put("createdAt", String.valueOf(System.currentTimeMillis()));
-        redisTemplate.opsForStream().add(StreamRecords.stringRecords(inputStream, payload));
+        redisTemplate.opsForStream().add(StreamRecords.string(payload).withStreamKey(inputStream));
     }
 
     public void publishEvent(String taskId, String type, String content) {
@@ -40,6 +40,6 @@ public class TaskProducer {
         payload.put("type", type);
         payload.put("content", content);
         payload.put("ts", String.valueOf(System.currentTimeMillis()));
-        redisTemplate.opsForStream().add(StreamRecords.stringRecords(resultStream, payload));
+        redisTemplate.opsForStream().add(StreamRecords.string(payload).withStreamKey(resultStream));
     }
 }

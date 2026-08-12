@@ -5,7 +5,7 @@ from .config import settings
 
 class RedisStreams:
     def __init__(self, url: str = settings.redis_url) -> None:
-        self.client = redis.from_url(url, decode_responses=True)
+        self.client = redis.from_url(url, decode_responses=True, socket_timeout=None)
 
     def ensure_group(self, stream: str, group: str) -> None:
         try:
@@ -20,6 +20,9 @@ class RedisStreams:
     def consume(self, stream: str, group: str, consumer: str, count: int = 1, block: int = 5_000):
         try:
             response = self.client.xreadgroup(group, consumer, {stream: ">"}, count=count, block=block)
+        except redis.exceptions.TimeoutError:
+            # Blocking read returned with no messages; keep the loop alive.
+            return []
         except redis.ResponseError:
             self.ensure_group(stream, group)
             return []

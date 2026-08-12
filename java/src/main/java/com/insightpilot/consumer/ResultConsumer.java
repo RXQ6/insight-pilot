@@ -13,11 +13,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.stream.Consumer;
-import org.springframework.data.redis.stream.MapRecord;
-import org.springframework.data.redis.stream.ReadOffset;
-import org.springframework.data.redis.stream.StreamOffset;
-import org.springframework.data.redis.stream.StreamReadOptions;
+import org.springframework.data.redis.connection.stream.Consumer;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.connection.stream.StreamOffset;
+import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -51,13 +51,13 @@ public class ResultConsumer implements ApplicationRunner {
 
     private void consumeLoop() {
         try {
-            redisTemplate.opsForStream().createGroup(resultStream, group, ReadOffset.from("0"), true);
+            redisTemplate.opsForStream().createGroup(resultStream, ReadOffset.from("0"), group);
         } catch (Exception e) {
             log.debug("stream group already exists: {}", e.getMessage());
         }
         while (true) {
             try {
-                List<MapRecord<String, String, String>> records = redisTemplate.opsForStream().read(
+                List<MapRecord<String, Object, Object>> records = redisTemplate.opsForStream().read(
                         Consumer.from(group, "java-1"),
                         StreamReadOptions.empty().count(20).block(Duration.ofSeconds(5)),
                         StreamOffset.create(resultStream, ReadOffset.lastConsumed())
@@ -65,7 +65,7 @@ public class ResultConsumer implements ApplicationRunner {
                 if (records == null) {
                     continue;
                 }
-                for (MapRecord<String, String, String> record : records) {
+                for (MapRecord<String, Object, Object> record : records) {
                     handle(record);
                     redisTemplate.opsForStream().acknowledge(resultStream, group, record.getId());
                 }
@@ -81,11 +81,11 @@ public class ResultConsumer implements ApplicationRunner {
         }
     }
 
-    private void handle(MapRecord<String, String, String> record) {
-        Map<String, String> value = record.getValue();
-        String taskId = value.get("taskId");
-        String type = value.get("type");
-        String content = value.get("content");
+    private void handle(MapRecord<String, Object, Object> record) {
+        Map<Object, Object> value = record.getValue();
+        String taskId = value.get("taskId") == null ? null : String.valueOf(value.get("taskId"));
+        String type = value.get("type") == null ? null : String.valueOf(value.get("type"));
+        String content = value.get("content") == null ? null : String.valueOf(value.get("content"));
         Task task = taskId == null ? null : taskRepository.findByTaskId(taskId).orElse(null);
 
         switch (type == null ? "" : type) {

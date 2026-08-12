@@ -44,6 +44,7 @@ def run_worker() -> None:
                         "task_id": task.taskId,
                         "session_id": task.sessionId,
                     },
+                    config={"configurable": {"thread_id": task.taskId}},
                     stream_mode="updates",
                 ):
                     for node, payload in update.items():
