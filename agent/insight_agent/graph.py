@@ -11,6 +11,7 @@ class AgentState(TypedDict):
     question: str
     task_id: str
     session_id: str
+    history: list
     intent: str
     plan: list[str]
     current_step: int

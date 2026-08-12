@@ -1,0 +1,20 @@
+{
+  "runAt": "2026-08-12T15:11:46Z",
+  "total": 10,
+  "passed": 9,
+  "passRate": 0.9,
+  "sqlAccuracy": 0.9,
+  "safetyBlockRate": 0.0,
+  "chartUsableRate": 0.0,
+  "avgLatencyMs": 5938.3,
+  "avgCostCny": 0.003025,
+  "byType": {
+    "sql_single": {
+      "total": 10,
+      "passed": 9
+    }
+  },
+  "failed": [
+    "sql_single_004"
+  ]
+}

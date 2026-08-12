@@ -22,12 +22,13 @@ public class TaskProducer {
     @Value("${app.redis.task-result-stream:task:result}")
     private String resultStream;
 
-    public void submit(Task task, String message) {
+    public void submit(Task task, String message, String historyJson) {
         Map<String, String> payload = new HashMap<>();
         payload.put("taskId", task.getTaskId());
         payload.put("sessionId", String.valueOf(task.getSessionId()));
         payload.put("userId", String.valueOf(task.getUserId()));
         payload.put("message", message);
+        payload.put("history", historyJson == null ? "" : historyJson);
         payload.put("maxSteps", "8");
         payload.put("costCapCny", "0.2");
         payload.put("createdAt", String.valueOf(System.currentTimeMillis()));

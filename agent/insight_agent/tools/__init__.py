@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .chart import generate_chart
-from .db import get_schema, query_database
+from .db import get_enum_values, get_schema, query_database
 from .knowledge import query_knowledge_base
 from .python_sandbox import execute_python
 
@@ -27,6 +27,12 @@ TOOLS: list[Tool] = [
         description="执行只读 SQL 查询",
         parameters={"sql": {"type": "string", "description": "SELECT / WITH 语句"}},
         handler=query_database,
+    ),
+    Tool(
+        name="get_enum_values",
+        description="获取状态、品类、区域等字段的取值示例",
+        parameters={},
+        handler=get_enum_values,
     ),
     Tool(
         name="execute_python",

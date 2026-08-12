@@ -18,7 +18,7 @@ FORBIDDEN_KEYWORDS = (
 
 
 def get_schema(table: str | None = None) -> str:
-    with psycopg.connect(settings.postgres_dsn, connect_timeout=5) as conn:
+    with _connect() as conn:
         with conn.cursor() as cur:
             if table:
                 cur.execute(
@@ -55,8 +55,9 @@ def query_database(sql: str) -> str:
         return "错误：禁止多条语句"
 
     options = f"-c statement_timeout={settings.sql_timeout_seconds * 1000}"
-    with psycopg.connect(settings.postgres_dsn, connect_timeout=5, options=options) as conn:
+    with _connect(options=options) as conn:
         with conn.cursor() as cur:
+            cur.execute("SET TRANSACTION READ ONLY")
             cur.execute(sql)
             columns = [desc.name for desc in cur.description] if cur.description else []
             rows = cur.fetchmany(settings.query_row_limit)
@@ -68,3 +69,23 @@ def query_database(sql: str) -> str:
     }
     text = json.dumps(payload, ensure_ascii=False, default=str)
     return text[: settings.max_tool_output_chars]
+
+
+def get_enum_values() -> str:
+    queries = [
+        ("orders.status", "SELECT DISTINCT status FROM orders"),
+        ("products.category", "SELECT DISTINCT category FROM products"),
+        ("customers.region", "SELECT DISTINCT region FROM customers"),
+    ]
+    payload = {}
+    with _connect() as conn:
+        with conn.cursor() as cur:
+            for key, sql in queries:
+                cur.execute(sql)
+                payload[key] = [row[0] for row in cur.fetchall()]
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _connect(options: str | None = None):
+    dsn = settings.postgres_readonly_dsn or settings.postgres_dsn
+    return psycopg.connect(dsn, connect_timeout=5, options=options)

@@ -68,7 +68,15 @@ public class TaskService {
         session.setUpdatedAt(Instant.now());
         sessionRepository.save(session);
 
-        taskProducer.submit(task, request.message());
+        List<Map<String, String>> history = messageRepository
+                .findBySessionIdOrderByCreatedAtAsc(session.getId())
+                .stream()
+                .limit(10)
+                .map(message -> Map.of(
+                        "role", message.getRole(),
+                        "content", message.getContent() == null ? "" : message.getContent()))
+                .toList();
+        taskProducer.submit(task, request.message(), asJson(history));
         auditService.record(userId, "create_task", task.getTaskId(), null);
         return toResponse(task);
     }

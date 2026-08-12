@@ -1,11 +1,18 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
     redis_url: str = "redis://localhost:6379/0"
     postgres_dsn: str = "postgresql://insight:insight@localhost:5432/insight"
+    postgres_readonly_dsn: str = ""
+    sandbox_mode: str = "local"
 
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com/v1"

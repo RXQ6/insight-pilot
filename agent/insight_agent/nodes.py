@@ -22,6 +22,9 @@ def _extract_sql(text: str) -> str | None:
     match = re.search(r"```sql\n(.*?)```", text, re.S)
     if match:
         return match.group(1).strip()
+    match = re.search(r"((?:SELECT|WITH)\b.*?;)", text, re.S)
+    if match:
+        return match.group(1).strip()
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.lower().startswith(("select", "with")):
@@ -45,6 +48,16 @@ def _usage(response) -> list[dict]:
     return []
 
 
+def _history_text(state: dict) -> str:
+    history = state.get("history") or []
+    lines = []
+    for item in history[-8:]:
+        role = item.get("role", "user")
+        content = item.get("content", "")
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
+
+
 def _generate_chart_spec(question: str, context: str) -> tuple[dict | None, list[dict]]:
     response = _llm().invoke(
         [
@@ -63,10 +76,14 @@ def _generate_chart_spec(question: str, context: str) -> tuple[dict | None, list
 
 
 def intent_classify(state: dict) -> dict:
+    history = _history_text(state)
+    user_content = state["question"]
+    if history:
+        user_content = f"历史对话：\n{history}\n\n当前问题：{state['question']}"
     response = _llm().invoke(
         [
             {"role": "system", "content": INTENT_SYSTEM},
-            {"role": "user", "content": state["question"]},
+            {"role": "user", "content": user_content},
         ]
     )
     intent = (response.content or "").strip().lower()
@@ -76,10 +93,14 @@ def intent_classify(state: dict) -> dict:
 
 
 def plan(state: dict) -> dict:
+    history = _history_text(state)
+    user_content = state["question"]
+    if history:
+        user_content = f"历史对话：\n{history}\n\n当前问题：{state['question']}"
     response = _llm().invoke(
         [
             {"role": "system", "content": PLAN_SYSTEM},
-            {"role": "user", "content": state["question"]},
+            {"role": "user", "content": user_content},
         ]
     )
     steps = [
@@ -101,7 +122,10 @@ def agent_step(state: dict) -> dict:
         return {"step_count": step_count, "final_answer": "步骤过多，已自动停止，请简化问题后重试。"}
 
     if state.get("intent") == "knowledge_qa":
-        result = run_tool("query_knowledge_base", {"question": state["question"]})
+        try:
+            result = run_tool("query_knowledge_base", {"question": state["question"]})
+        except Exception as exc:  # noqa: BLE001
+            result = f"知识库检索失败：{exc}"
         return {
             "query_result": [{"source": "knowledge", "text": result}],
             "step_count": step_count + 1,
@@ -109,13 +133,18 @@ def agent_step(state: dict) -> dict:
         }
 
     schema = run_tool("get_schema", {})
+    enum_values = run_tool("get_enum_values", {})
+    history = _history_text(state)
+    user_content = (
+        f"表结构：\n{schema}\n\n字段取值示例：\n{enum_values}\n\n"
+        f"问题：{state['question']}\n请生成可执行 SQL。"
+    )
+    if history:
+        user_content = f"历史对话：\n{history}\n\n{user_content}"
     response = _llm().invoke(
         [
             {"role": "system", "content": SQL_SYSTEM},
-            {
-                "role": "user",
-                "content": f"表结构：\n{schema}\n\n问题：{state['question']}\n请生成可执行 SQL。",
-            },
+            {"role": "user", "content": user_content},
         ]
     )
     sql = _extract_sql(response.content or "")
@@ -144,10 +173,14 @@ def answer(state: dict) -> dict:
     if state.get("final_answer"):
         return {"final_answer": state["final_answer"], "chart_spec": state.get("chart_spec"), "usage": []}
     context = json.dumps(state.get("query_result", []), ensure_ascii=False, default=str)
+    history = _history_text(state)
+    user_content = f"问题：{state['question']}\n查询结果：{context[:12_000]}"
+    if history:
+        user_content = f"历史对话：\n{history}\n\n{user_content}"
     response = _llm().invoke(
         [
             {"role": "system", "content": ANSWER_SYSTEM},
-            {"role": "user", "content": f"问题：{state['question']}\n查询结果：{context[:12_000]}"},
+            {"role": "user", "content": user_content},
         ]
     )
     usage = _usage(response)

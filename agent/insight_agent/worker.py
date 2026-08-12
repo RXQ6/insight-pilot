@@ -23,6 +23,16 @@ def _publish(streams: RedisStreams, task_id: str, event_type: str, content) -> N
     )
 
 
+def _load_history(task: TaskMessage) -> list[dict]:
+    if not task.history:
+        return []
+    try:
+        parsed = json.loads(task.history)
+        return parsed if isinstance(parsed, list) else []
+    except json.JSONDecodeError:
+        return []
+
+
 def run_worker() -> None:
     streams = RedisStreams()
     streams.ensure_group(settings.task_input_stream, settings.consumer_group)
@@ -45,6 +55,7 @@ def run_worker() -> None:
                         "question": task.message,
                         "task_id": task.taskId,
                         "session_id": task.sessionId,
+                        "history": _load_history(task),
                     },
                     config={"configurable": {"thread_id": task.taskId}},
                     stream_mode="updates",
