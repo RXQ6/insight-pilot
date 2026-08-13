@@ -1,4 +1,4 @@
-# InsightPilot
+﻿# InsightPilot
 
 InsightPilot 是一个面向数据分析场景的自主 Agent 项目：用户用自然语言提问，Agent 自主完成意图理解、任务规划、SQL 生成与执行、Python 分析、图表生成和结果解释，并通过 Java 控制面、Redis 消息队列和 React 工作台形成完整产品闭环。
 
@@ -118,3 +118,4 @@ frontend/    React 工作台
 - MCP 工具标准化
 - Dify 低代码对照
 - 在线部署与 Docker 全栈镜像
+
