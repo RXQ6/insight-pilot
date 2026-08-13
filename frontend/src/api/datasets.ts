@@ -11,4 +11,9 @@ export const datasetApi = {
   },
   preview: (id: number) => api.get<PreviewResponse>(`/datasets/${id}/preview`).then((r) => r.data),
   remove: (id: number) => api.delete(`/datasets/${id}`),
+  demo: {
+    get: () => api.get<{ enabled: boolean }>('/users/demo').then((r) => r.data.enabled),
+    set: (enabled: boolean) =>
+      api.post<{ enabled: boolean }>('/users/demo', { enabled }).then((r) => r.data.enabled),
+  },
 }

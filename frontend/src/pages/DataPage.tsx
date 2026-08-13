@@ -1,4 +1,4 @@
-import { Button, Card, List, Modal, Table, Typography, Upload, message } from 'antd'
+import { Button, Card, List, Modal, Switch, Table, Typography, Upload, message } from 'antd'
 import { InboxOutlined } from '@ant-design/icons'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -8,15 +8,24 @@ import type { Dataset, PreviewResponse } from '../types'
 export default function DataPage() {
   const navigate = useNavigate()
   const [datasets, setDatasets] = useState<Dataset[]>([])
+  const [demoEnabled, setDemoEnabled] = useState(false)
   const [preview, setPreview] = useState<PreviewResponse | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
 
-  const load = async () => setDatasets(await datasetApi.list())
+  const load = async () => {
+    setDatasets(await datasetApi.list())
+    setDemoEnabled(await datasetApi.demo.get())
+  }
 
   useEffect(() => {
     load()
   }, [])
+
+  const toggleDemo = async (enabled: boolean) => {
+    setDemoEnabled(await datasetApi.demo.set(enabled))
+    message.success(enabled ? '示例数据集已启用' : '示例数据集已关闭')
+  }
 
   const beforeUpload = async (file: File) => {
     setUploading(true)
@@ -52,7 +61,18 @@ export default function DataPage() {
       <Button onClick={() => navigate('/')} style={{ marginBottom: 16 }}>
         返回工作台
       </Button>
-      <Card style={{ marginBottom: 16 }}>
+
+      <Card title="示例数据集" style={{ marginBottom: 16 }}>
+        <Typography.Paragraph>
+          内置的演示订单数据，启用后可用于体验。关闭后 Agent 不再查询示例数据。
+        </Typography.Paragraph>
+        <Switch checked={demoEnabled} onChange={toggleDemo} checkedChildren="已启用" unCheckedChildren="已关闭" />
+        <Typography.Text type="secondary" style={{ marginLeft: 12 }}>
+          {demoEnabled ? '示例数据可用' : '示例数据不可用，上传 CSV 后使用自己的数据'}
+        </Typography.Text>
+      </Card>
+
+      <Card title="上传自己的数据" style={{ marginBottom: 16 }}>
         <Upload.Dragger beforeUpload={beforeUpload} showUploadList={false} disabled={uploading} accept=".csv">
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
@@ -61,6 +81,7 @@ export default function DataPage() {
           <p className="ant-upload-hint">上传后可以用自然语言分析自己的数据</p>
         </Upload.Dragger>
       </Card>
+
       <List
         bordered
         dataSource={datasets}

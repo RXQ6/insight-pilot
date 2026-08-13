@@ -134,7 +134,11 @@ def agent_step(state: dict) -> dict:
         }
 
     schema = run_tool("get_schema", {"user_id": state.get("user_id", "")})
-    enum_values = run_tool("get_enum_values", {})
+    if state.get("user_id"):
+        schema_rows = json.loads(schema)
+        if not schema_rows:
+            return {"final_answer": "当前没有可用数据，请先在“数据”页启用示例数据集或上传 CSV。", "usage": []}
+    enum_values = run_tool("get_enum_values", {"user_id": state.get("user_id", "")})
     history = _history_text(state)
     user_content = (
         f"表结构：\n{schema}\n\n字段取值示例：\n{enum_values}\n\n"

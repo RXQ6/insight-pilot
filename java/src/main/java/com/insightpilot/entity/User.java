@@ -33,6 +33,9 @@ public class User {
     @Column(nullable = false, length = 16)
     private String role = "user";
 
+    @Column(name = "demo_enabled", nullable = false)
+    private boolean demoEnabled = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
