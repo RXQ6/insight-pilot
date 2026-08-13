@@ -77,6 +77,13 @@ cd frontend && npm install && npm run dev
 ```bash
 psql -U insight -d insight -f agent/data/sample_data.sql
 ```
+## CSV 数据上传（已实现）
+
+- 前端「数据」页支持上传 CSV、预览前 20 行、删除数据集
+- 每个用户的数据独立建表：dataset_{userId}_{id}
+- Agent 的 get_schema 只暴露当前用户的数据表，SQL 查询会拦截其他用户的数据表
+- 接口：POST /api/datasets/upload、GET /api/datasets、GET /api/datasets/{id}/preview、DELETE /api/datasets/{id}
+
 ## 核心 API
 
 | 方法 | 路径 | 说明 |
