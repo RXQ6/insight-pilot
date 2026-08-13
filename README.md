@@ -1,4 +1,4 @@
-﻿# InsightPilot
+# InsightPilot
 
 InsightPilot 是一个面向数据分析场景的自主 Agent 项目：用户用自然语言提问，Agent 自主完成意图理解、任务规划、SQL 生成与执行、Python 分析、图表生成和结果解释，并通过 Java 控制面、Redis 消息队列和 React 工作台形成完整产品闭环。
 
@@ -69,6 +69,14 @@ cd frontend && npm install && npm run dev
 
 前端访问 `http://localhost:5173`，Java API 访问 `http://localhost:8080`，OpenAPI 文档在 `/swagger-ui.html`。
 
+
+## 预生成数据
+
+不想运行生成脚本时，可以直接导入仓库里的示例数据：
+
+```bash
+psql -U insight -d insight -f agent/data/sample_data.sql
+```
 ## 核心 API
 
 | 方法 | 路径 | 说明 |

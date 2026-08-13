@@ -1,4 +1,4 @@
-import { Layout, Typography } from 'antd'
+﻿import { Layout, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { sessionApi } from '../api/sessions'
@@ -10,6 +10,12 @@ import ToolTrace from '../components/ToolTrace'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
 import type { Session } from '../types'
+
+const EXAMPLES = [
+  '2026年4月订单总数是多少？',
+  '用柱状图展示各区域销售额',
+  '退款订单怎么排查',
+]
 
 export default function ChatPage() {
   const navigate = useNavigate()
@@ -73,6 +79,20 @@ export default function ChatPage() {
           <Typography.Link onClick={() => navigate('/eval')}>评测</Typography.Link>
           <Typography.Link onClick={logout}>退出</Typography.Link>
         </div>
+        {chat.messages.length === 0 ? (
+          <div className="example-grid">
+            {EXAMPLES.map((question) => (
+              <button
+                key={question}
+                className="example-chip"
+                disabled={!activeId || running}
+                onClick={() => activeId && chat.send(activeId, question)}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <MessageList
           messages={chat.messages}
           streaming={chat.streaming}

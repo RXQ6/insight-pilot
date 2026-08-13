@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     postgres_dsn: str = "postgresql://insight:insight@localhost:5432/insight"
     postgres_readonly_dsn: str = ""
     sandbox_mode: str = "local"
+    embedding_enabled: bool = False
 
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com/v1"
@@ -35,3 +36,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

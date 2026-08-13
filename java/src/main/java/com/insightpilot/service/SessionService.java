@@ -9,6 +9,7 @@ import com.insightpilot.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -52,6 +53,7 @@ public class SessionService {
                 .toList();
     }
 
+    @Transactional
     public void delete(Long userId, Long sessionId) {
         ChatSession session = ownedSession(userId, sessionId);
         messageRepository.deleteBySessionId(session.getId());
@@ -67,3 +69,4 @@ public class SessionService {
         return session;
     }
 }
+

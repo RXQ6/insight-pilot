@@ -27,9 +27,12 @@ def retrieve_top_k(question: str, top_k: int = 5) -> list[str]:
     if not table_exists:
         return []
 
-    try:
-        embedding = embed_texts([question])[0]
-    except Exception:
+    if settings.embedding_enabled:
+        try:
+            embedding = embed_texts([question])[0]
+        except Exception:
+            embedding = None
+    else:
         embedding = None
 
     with psycopg.connect(settings.postgres_dsn, connect_timeout=5) as conn:
@@ -61,3 +64,4 @@ def retrieve_top_k(question: str, top_k: int = 5) -> list[str]:
                 )
             rows = cur.fetchall()
     return [f"[score={round(row[1], 4)}] {row[0]}" for row in rows]
+
