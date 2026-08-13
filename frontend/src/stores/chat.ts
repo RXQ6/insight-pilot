@@ -4,6 +4,13 @@ import { sessionApi } from '../api/sessions'
 import { taskApi } from '../api/tasks'
 import type { ChartSpec, Message, TaskEvent, TaskOutput, ToolCallEvent } from '../types'
 
+export interface TaskMetrics {
+  latencyMs: number
+  tokenIn: number
+  tokenOut: number
+  costCny: number
+}
+
 function parseContent(raw: unknown): unknown {
   if (typeof raw !== 'string') {
     return raw
@@ -13,6 +20,10 @@ function parseContent(raw: unknown): unknown {
   } catch {
     return raw
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
 interface ApprovalState {
@@ -27,6 +38,7 @@ interface ChatState {
   chart: ChartSpec | null
   toolCalls: ToolCallEvent[]
   approval: ApprovalState | null
+  metrics: TaskMetrics | null
   loadMessages: (sessionId: number) => Promise<void>
   send: (sessionId: number, text: string) => Promise<void>
   resolveApproval: (approved: boolean) => Promise<void>
@@ -44,18 +56,20 @@ export const useChatStore = create<ChatState>((set) => {
         }
         break
       }
-      case 'tool_call':
+      case 'tool_call': {
+        const call = asRecord(content)
         set((state) => ({
           toolCalls: [
             ...state.toolCalls,
             {
-              name: event.tool ?? event.args?.name,
-              arguments: event.args,
-              status: 'running',
+              name: (call.name as string) ?? event.tool ?? event.args?.name,
+              arguments: (call.arguments as Record<string, unknown>) ?? event.args,
+              status: (call.status as string) ?? 'running',
             } as ToolCallEvent,
           ],
         }))
         break
+      }
       case 'token':
         if (typeof content === 'string') {
           set((state) => ({ streaming: state.streaming + content }))
@@ -68,16 +82,18 @@ export const useChatStore = create<ChatState>((set) => {
         }
         break
       }
-      case 'approval_required':
+      case 'approval_required': {
+        const record = asRecord(content)
         set({
           approval: {
-            taskId: event.taskId ?? '',
-            reason: typeof content === 'string' ? content : '需要人工确认',
+            taskId: (record.taskId as string) ?? event.taskId ?? '',
+            reason: (record.reason as string) ?? (typeof content === 'string' ? content : '需要人工确认'),
           },
         })
         break
+      }
       case 'result': {
-        const output = (event.output ?? content) as TaskOutput | null
+        const output = (content as TaskOutput) ?? event.output
         set((state) => ({
           messages: [
             ...state.messages,
@@ -92,9 +108,19 @@ export const useChatStore = create<ChatState>((set) => {
         }))
         break
       }
-      case 'done':
-        set({ status: 'done' })
+      case 'done': {
+        const record = asRecord(content)
+        set({
+          status: 'done',
+          metrics: {
+            latencyMs: Number(record.latencyMs ?? 0),
+            tokenIn: Number(record.tokenIn ?? 0),
+            tokenOut: Number(record.tokenOut ?? 0),
+            costCny: Number(record.costCny ?? 0),
+          },
+        })
         break
+      }
       case 'error':
         set((state) => ({
           status: 'error',
@@ -121,6 +147,7 @@ export const useChatStore = create<ChatState>((set) => {
     chart: null,
     toolCalls: [],
     approval: null,
+    metrics: null,
 
     async loadMessages(sessionId) {
       const items = await sessionApi.messages(sessionId)
@@ -130,6 +157,7 @@ export const useChatStore = create<ChatState>((set) => {
         streaming: '',
         chart: null,
         toolCalls: [],
+        metrics: null,
       })
     },
 
@@ -145,6 +173,7 @@ export const useChatStore = create<ChatState>((set) => {
         chart: null,
         toolCalls: [],
         approval: null,
+        metrics: null,
       }))
       const task = await taskApi.create({ sessionId, message: text })
       connectTaskEvents(task.taskId, token, {
@@ -170,6 +199,7 @@ export const useChatStore = create<ChatState>((set) => {
         chart: null,
         toolCalls: [],
         approval: null,
+        metrics: null,
       })
     },
   }

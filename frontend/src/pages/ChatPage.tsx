@@ -1,4 +1,4 @@
-﻿import { Layout, Typography } from 'antd'
+import { Layout, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { sessionApi } from '../api/sessions'
@@ -75,6 +75,11 @@ export default function ChatPage() {
             {activeSession?.title ?? '数据分析工作台'}
           </Typography.Title>
           <Typography.Text type="secondary">状态：{chat.status}</Typography.Text>
+          {chat.metrics ? (
+            <Typography.Text type="secondary" className="metrics-text">
+              {chat.metrics.latencyMs}ms · 输入 {chat.metrics.tokenIn} · 输出 {chat.metrics.tokenOut} · ¥{chat.metrics.costCny}
+            </Typography.Text>
+          ) : null}
           <Typography.Link onClick={() => navigate('/history')}>历史</Typography.Link>
           <Typography.Link onClick={() => navigate('/eval')}>评测</Typography.Link>
           <Typography.Link onClick={logout}>退出</Typography.Link>
