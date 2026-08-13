@@ -141,6 +141,7 @@ def run_worker() -> None:
                             "task_id": task.taskId,
                             "session_id": task.sessionId,
                             "history": _load_history(task),
+                            "user_id": task.userId,
                         },
                         config={"configurable": {"thread_id": task.taskId}},
                         stream_mode=["updates", "messages"],

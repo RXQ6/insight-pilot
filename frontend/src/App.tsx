@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ChatPage from './pages/ChatPage'
+import DataPage from './pages/DataPage'
 import EvalPage from './pages/EvalPage'
 import HistoryPage from './pages/HistoryPage'
 import LoginPage from './pages/LoginPage'
@@ -25,6 +26,7 @@ export default function App() {
           </Protected>
         }
       />
+      <Route path="/data" element={<Protected><DataPage /></Protected>} />
       <Route
         path="/history"
         element={

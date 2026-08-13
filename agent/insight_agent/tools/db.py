@@ -1,4 +1,5 @@
 import json
+import re
 
 import psycopg
 
@@ -17,7 +18,7 @@ FORBIDDEN_KEYWORDS = (
 )
 
 
-def get_schema(table: str | None = None) -> str:
+def get_schema(table: str | None = None, user_id: str = "") -> str:
     with _connect() as conn:
         with conn.cursor() as cur:
             if table:
@@ -40,19 +41,26 @@ def get_schema(table: str | None = None) -> str:
                     """
                 )
             rows = cur.fetchall()
+            if user_id:
+                prefix = f"dataset_{user_id}_"
+                rows = [row for row in rows if not row[0].startswith("dataset_") or row[0].startswith(prefix)]
     payload = [
         {"table": row[0], "column": row[1], "type": row[2], "nullable": row[3]} for row in rows
     ]
     return json.dumps(payload, ensure_ascii=False)
 
 
-def query_database(sql: str) -> str:
+def query_database(sql: str, user_id: str = "") -> str:
     sql = sql.strip().rstrip(";").strip()
     lowered = sql.lower()
     if any(keyword in lowered for keyword in FORBIDDEN_KEYWORDS):
         return "错误：只允许 SELECT / WITH 只读查询"
     if ";" in sql:
         return "错误：禁止多条语句"
+    if user_id:
+        for name in re.findall(r"(?:from|join)\\s+([a-zA-Z_][a-zA-Z0-9_]*)", sql, re.I):
+            if name.startswith("dataset_") and not name.startswith(f"dataset_{user_id}_"):
+                return "错误：无权访问该数据表"
 
     options = f"-c statement_timeout={settings.sql_timeout_seconds * 1000}"
     with _connect(options=options) as conn:

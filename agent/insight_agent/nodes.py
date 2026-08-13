@@ -133,7 +133,7 @@ def agent_step(state: dict) -> dict:
             "usage": [],
         }
 
-    schema = run_tool("get_schema", {})
+    schema = run_tool("get_schema", {"user_id": state.get("user_id", "")})
     enum_values = run_tool("get_enum_values", {})
     history = _history_text(state)
     user_content = (
@@ -162,7 +162,7 @@ def agent_step(state: dict) -> dict:
     if needs_approval:
         interrupt({"tool": "query_database", "reason": "该查询可能返回全表数据，需要人工确认后执行"})
 
-    result = run_tool("query_database", {"sql": sql})
+    result = run_tool("query_database", {"sql": sql, "user_id": state.get("user_id", "")})
     return {
         "sql": sql,
         "query_result": [{"sql": sql, "result": result}],

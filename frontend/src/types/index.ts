@@ -85,3 +85,16 @@ export interface EvalSummary {
   avgCostCny: number
   finishedAt: string
 }
+
+export interface Dataset {
+  id: number
+  name: string
+  tableName: string
+  rowCount: number
+  createdAt: string
+}
+
+export interface PreviewResponse {
+  columns: string[]
+  rows: Record<string, unknown>[]
+}

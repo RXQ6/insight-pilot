@@ -62,4 +62,10 @@ public final class ApiDtos {
     public record EvalSummary(String runId, long total, long passed, double sqlAccuracy,
                               double avgCostCny, Instant finishedAt) {
     }
+
+    public record DatasetResponse(Long id, String name, String tableName, long rowCount, Instant createdAt) {
+    }
+
+    public record PreviewResponse(List<String> columns, List<Map<String, Object>> rows) {
+    }
 }

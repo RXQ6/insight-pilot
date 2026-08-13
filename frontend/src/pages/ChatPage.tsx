@@ -82,6 +82,7 @@ export default function ChatPage() {
             </span>
           ) : null}
           <div className="header-links">
+            <Typography.Link onClick={() => navigate('/data')}>数据</Typography.Link>
             <Typography.Link onClick={() => navigate('/history')}>历史</Typography.Link>
             <Typography.Link onClick={() => navigate('/eval')}>评测</Typography.Link>
             <Typography.Link onClick={logout}>退出</Typography.Link>
