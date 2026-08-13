@@ -13,13 +13,14 @@ interface SidebarProps {
 export default function Sidebar({ sessions, activeId, onSelect, onCreate, onDelete }: SidebarProps) {
   return (
     <div className="sidebar">
-      <Button
-        type="primary"
-        block
-        icon={<PlusOutlined />}
-        onClick={onCreate}
-        style={{ marginBottom: 12 }}
-      >
+      <div className="sidebar-brand">
+        <div className="brand-logo">IP</div>
+        <div>
+          <div className="brand-name">InsightPilot</div>
+          <div className="brand-sub">数据分析 Agent</div>
+        </div>
+      </div>
+      <Button type="primary" block icon={<PlusOutlined />} onClick={onCreate} style={{ marginBottom: 12 }}>
         新建会话
       </Button>
       <List

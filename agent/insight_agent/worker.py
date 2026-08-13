@@ -35,41 +35,64 @@ def _load_history(task: TaskMessage) -> list[dict]:
         return []
 
 
-def _emit_updates(streams: RedisStreams, task_id: str, updates, started: float) -> dict:
-    final_answer = None
-    chart_spec = None
-    usage: list[dict] = []
-    interrupted = False
-    reason = "需要人工确认"
-    for update in updates:
-        for node, payload in update.items():
-            if node == "__interrupt__":
-                interrupted = True
-                if isinstance(payload, (list, tuple)) and payload:
-                    value = payload[0]
-                    if isinstance(value, dict):
-                        reason = value.get("reason", reason)
-                    elif hasattr(value, "value") and isinstance(value.value, dict):
-                        reason = value.value.get("reason", reason)
-                continue
-            if not isinstance(payload, dict):
-                continue
-            if node == "agent_step":
-                for call in payload.get("tool_calls", []):
-                    _publish(streams, task_id, "tool_call", call)
+def _handle_item(streams: RedisStreams, task_id: str, item, state: dict) -> dict:
+    if isinstance(item, tuple) and len(item) == 2:
+        mode, payload = item
+        if mode == "messages" and isinstance(payload, (list, tuple)) and payload:
+            chunk = payload[0]
+            metadata = payload[1] if len(payload) > 1 else {}
+            node = (metadata or {}).get("langgraph_node") if isinstance(metadata, dict) else None
             if node == "answer":
-                final_answer = payload.get("final_answer")
-                chart_spec = payload.get("chart_spec")
-            usage.extend(payload.get("usage", []))
+                text = getattr(chunk, "content", "") or ""
+                if text:
+                    _publish(streams, task_id, "token", text)
+            return state
+        if mode == "updates":
+            item = payload
+        else:
+            return state
 
-    if final_answer:
-        result_payload = {"answer": final_answer}
-        if chart_spec:
-            result_payload["chartSpec"] = chart_spec
-            _publish(streams, task_id, "chart", chart_spec)
+    for node, payload in item.items():
+        if node == "__interrupt__":
+            state["interrupted"] = True
+            if isinstance(payload, (list, tuple)) and payload:
+                value = payload[0]
+                if isinstance(value, dict):
+                    state["reason"] = value.get("reason", state["reason"])
+                elif hasattr(value, "value") and isinstance(value.value, dict):
+                    state["reason"] = value.value.get("reason", state["reason"])
+            continue
+        if not isinstance(payload, dict):
+            continue
+        if node == "agent_step":
+            for call in payload.get("tool_calls", []):
+                _publish(streams, task_id, "tool_call", call)
+        if node == "answer":
+            state["final_answer"] = payload.get("final_answer")
+            state["chart_spec"] = payload.get("chart_spec")
+        state["usage"].extend(payload.get("usage", []))
+    return state
+
+
+def _emit_updates(streams: RedisStreams, task_id: str, stream, started: float) -> dict:
+    state = {
+        "final_answer": None,
+        "chart_spec": None,
+        "usage": [],
+        "interrupted": False,
+        "reason": "approval required",
+    }
+    for item in stream:
+        _handle_item(streams, task_id, item, state)
+
+    if state["final_answer"]:
+        result_payload = {"answer": state["final_answer"]}
+        if state["chart_spec"]:
+            result_payload["chartSpec"] = state["chart_spec"]
+            _publish(streams, task_id, "chart", state["chart_spec"])
         _publish(streams, task_id, "result", result_payload)
-        token_in = sum(item.get("prompt_tokens", 0) for item in usage)
-        token_out = sum(item.get("completion_tokens", 0) for item in usage)
+        token_in = sum(item.get("prompt_tokens", 0) for item in state["usage"])
+        token_out = sum(item.get("completion_tokens", 0) for item in state["usage"])
         _publish(
             streams,
             task_id,
@@ -81,7 +104,7 @@ def _emit_updates(streams: RedisStreams, task_id: str, updates, started: float) 
                 "costCny": round(token_in * 0.000001 + token_out * 0.000002, 6),
             },
         )
-    return {"finished": bool(final_answer), "interrupted": interrupted, "reason": reason}
+    return state
 
 
 def run_worker() -> None:
@@ -99,12 +122,12 @@ def run_worker() -> None:
                     task_id = fields["taskId"]
                     approved = str(fields.get("approved", "false")).lower() == "true"
                     _publish(streams, task_id, "status", "running")
-                    updates = graph.stream(
+                    stream = graph.stream(
                         Command(resume={"approved": approved}),
                         config={"configurable": {"thread_id": task_id}},
-                        stream_mode="updates",
+                        stream_mode=["updates", "messages"],
                     )
-                    _emit_updates(streams, task_id, updates, started=time.time())
+                    _emit_updates(streams, task_id, stream, started=time.time())
                     streams.ack(settings.task_input_stream, settings.consumer_group, message_id)
                     continue
 
@@ -112,7 +135,7 @@ def run_worker() -> None:
                 started = time.time()
                 _publish(streams, task.taskId, "status", "running")
                 try:
-                    updates = graph.stream(
+                    stream = graph.stream(
                         {
                             "question": task.message,
                             "task_id": task.taskId,
@@ -120,9 +143,9 @@ def run_worker() -> None:
                             "history": _load_history(task),
                         },
                         config={"configurable": {"thread_id": task.taskId}},
-                        stream_mode="updates",
+                        stream_mode=["updates", "messages"],
                     )
-                    outcome = _emit_updates(streams, task.taskId, updates, started)
+                    outcome = _emit_updates(streams, task.taskId, stream, started)
                     if outcome["interrupted"]:
                         _publish(
                             streams,
@@ -130,8 +153,8 @@ def run_worker() -> None:
                             "approval_required",
                             {"taskId": task.taskId, "reason": outcome["reason"]},
                         )
-                    elif not outcome["finished"]:
-                        _publish(streams, task.taskId, "error", "Agent 未生成回答")
+                    elif not outcome["final_answer"]:
+                        _publish(streams, task.taskId, "error", "Agent did not generate an answer")
                 except Exception as exc:  # noqa: BLE001
                     logger.exception("task %s failed", task.taskId)
                     _publish(streams, task.taskId, "error", str(exc))
