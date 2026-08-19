@@ -2,6 +2,7 @@ package com.insightpilot.controller;
 
 import com.insightpilot.dto.ApiDtos.ApproveRequest;
 import com.insightpilot.dto.ApiDtos.CreateTaskRequest;
+import com.insightpilot.dto.ApiDtos.DlqItem;
 import com.insightpilot.dto.ApiDtos.TaskListItem;
 import com.insightpilot.dto.ApiDtos.TaskResponse;
 import com.insightpilot.dto.ApiDtos.TraceResponse;
@@ -47,13 +48,18 @@ public class TaskController {
     }
 
     @GetMapping("/{taskId}")
-    public TaskResponse get(@PathVariable String taskId) {
-        return taskService.get(taskId);
+    public TaskResponse get(Authentication authentication, @PathVariable String taskId) {
+        return taskService.get(authService.userId(authentication.getName()), taskId);
     }
 
     @GetMapping("/{taskId}/trace")
-    public TraceResponse trace(@PathVariable String taskId) {
-        return taskService.trace(taskId);
+    public TraceResponse trace(Authentication authentication, @PathVariable String taskId) {
+        return taskService.trace(authService.userId(authentication.getName()), taskId);
+    }
+
+    @GetMapping("/dlq")
+    public Map<String, List<DlqItem>> dlq() {
+        return Map.of("items", taskService.dlq());
     }
 
     @PostMapping("/{taskId}/approve")
@@ -64,7 +70,8 @@ public class TaskController {
     }
 
     @GetMapping(value = "/{taskId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter events(@PathVariable String taskId) {
+    public SseEmitter events(Authentication authentication, @PathVariable String taskId) {
+        taskService.requireOwned(authService.userId(authentication.getName()), taskId);
         return sseService.connect(taskId);
     }
 }

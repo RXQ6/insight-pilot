@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.insightpilot.dto.ApiDtos.ApproveRequest;
 import com.insightpilot.dto.ApiDtos.CreateTaskRequest;
+import com.insightpilot.dto.ApiDtos.DlqItem;
 import com.insightpilot.dto.ApiDtos.TaskListItem;
 import com.insightpilot.dto.ApiDtos.TaskResponse;
 import com.insightpilot.dto.ApiDtos.ToolTraceItem;
@@ -17,6 +18,11 @@ import com.insightpilot.repository.MessageRepository;
 import com.insightpilot.repository.TaskRepository;
 import com.insightpilot.repository.ToolCallLogRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Range;
+import org.springframework.data.redis.connection.Limit;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +44,10 @@ public class TaskService {
     private final TaskProducer taskProducer;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
+
+    @Value("${app.redis.task-dlq-stream:task:dlq}")
+    private String dlqStream;
 
     @Transactional
     public TaskResponse create(Long userId, CreateTaskRequest request) {
@@ -81,10 +91,8 @@ public class TaskService {
         return toResponse(task);
     }
 
-    public TaskResponse get(String taskId) {
-        Task task = taskRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "task not found"));
-        return toResponse(task);
+    public TaskResponse get(Long userId, String taskId) {
+        return toResponse(requireOwned(userId, taskId));
     }
 
     public List<TaskListItem> list(Long userId) {
@@ -93,7 +101,17 @@ public class TaskService {
                 .toList();
     }
 
-    public TraceResponse trace(String taskId) {
+    public Task requireOwned(Long userId, String taskId) {
+        Task task = taskRepository.findByTaskId(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "task not found"));
+        if (userId != null && !task.getUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "forbidden");
+        }
+        return task;
+    }
+
+    public TraceResponse trace(Long userId, String taskId) {
+        requireOwned(userId, taskId);
         List<ToolTraceItem> steps = toolCallLogRepository.findByTaskIdOrderByCreatedAtAsc(taskId).stream()
                 .map(log -> new ToolTraceItem(
                         log.getToolName(),
@@ -104,10 +122,31 @@ public class TaskService {
         return new TraceResponse(taskId, steps);
     }
 
+    /** 查看最近进入死信队列的失败任务，用于运维排查。 */
+    public List<DlqItem> dlq() {
+        List<MapRecord<String, Object, Object>> records = redisTemplate
+                .opsForStream()
+                .reverseRange(dlqStream, Range.unbounded(), Limit.limit().count(50));
+        if (records == null) {
+            return List.of();
+        }
+        return records.stream().map(record -> {
+            Map<Object, Object> value = record.getValue();
+            return new DlqItem(
+                    record.getId().getValue(),
+                    stringValue(value.get("taskId")),
+                    stringValue(value.get("error")),
+                    stringValue(value.get("ts")));
+        }).toList();
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
     @Transactional
     public TaskResponse approve(Long userId, String taskId, ApproveRequest request) {
-        Task task = taskRepository.findByTaskId(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "task not found"));
+        Task task = requireOwned(userId, taskId);
         if (!"waiting_approval".equals(task.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "task is not waiting for approval");
         }

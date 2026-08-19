@@ -59,6 +59,9 @@ public final class ApiDtos {
     public record TraceResponse(String taskId, List<ToolTraceItem> steps) {
     }
 
+    public record DlqItem(String id, String taskId, String error, String ts) {
+    }
+
     public record EvalSummary(String runId, long total, long passed, double sqlAccuracy,
                               double avgCostCny, Instant finishedAt) {
     }
