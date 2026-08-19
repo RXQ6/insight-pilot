@@ -17,14 +17,18 @@ class AgentState(TypedDict):
     plan: list[str]
     current_step: int
     step_count: int
+    max_steps: int | None
+    cost_cap_cny: float | None
     sql: str | None
     query_result: list | None
     chart_spec: dict | None
+    file: dict | None
     final_answer: str | None
     errors: Annotated[list, operator.add]
     tool_calls: Annotated[list, operator.add]
     usage: Annotated[list, operator.add]
     reflect_note: str | None
+    fix_hint: str | None
 
 
 def build_graph():

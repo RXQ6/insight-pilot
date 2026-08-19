@@ -1,4 +1,4 @@
-﻿"""MCP server exposing InsightPilot tools for external Agent clients."""
+"""MCP server exposing InsightPilot tools for external Agent clients."""
 
 import sys
 from pathlib import Path
@@ -9,6 +9,7 @@ from fastmcp import FastMCP
 
 from insight_agent.tools.chart import generate_chart
 from insight_agent.tools.db import get_enum_values, get_schema, query_database
+from insight_agent.tools.export import export_csv
 from insight_agent.tools.knowledge import query_knowledge_base
 from insight_agent.tools.python_sandbox import execute_python
 
@@ -38,6 +39,11 @@ def execute_python_tool(code: str) -> str:
 @mcp.tool(name="generate_chart", description="生成 ECharts 图表 spec")
 def generate_chart_tool(chart_type: str, x: list, y: list, title: str = "") -> str:
     return generate_chart(chart_type, x, y, title)
+
+
+@mcp.tool(name="export_csv", description="将只读 SQL 的查询结果导出为 CSV 下载文件")
+def export_csv_tool(sql: str) -> str:
+    return export_csv(sql)
 
 
 @mcp.tool(name="query_knowledge_base", description="检索数据说明与运维知识库")

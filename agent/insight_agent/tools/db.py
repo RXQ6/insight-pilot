@@ -1,4 +1,4 @@
-﻿import json
+import json
 import re
 
 import psycopg
@@ -104,20 +104,21 @@ def get_enum_values(user_id: str = "") -> str:
     return json.dumps(payload, ensure_ascii=False)
 
 
-def query_database(sql: str, user_id: str = "") -> str:
+def fetch_rows(sql: str, user_id: str = "") -> tuple[list[str], list[list]]:
+    """执行只读查询，返回 (列名, 行数据)。带关键字拦截、用户表隔离与行数上限。"""
     sql = sql.strip().rstrip(";").strip()
     lowered = sql.lower()
     if any(keyword in lowered for keyword in FORBIDDEN_KEYWORDS):
-        return "错误：只允许 SELECT / WITH 只读查询"
+        raise PermissionError("只允许 SELECT / WITH 只读查询")
     if ";" in sql:
-        return "错误：禁止多条语句"
+        raise ValueError("禁止多条语句")
     if user_id:
         shared, dataset_names = _user_context(user_id)
         for name in re.findall(r"(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)", sql, re.I):
             if name in SHARED_DEMO_TABLES and name not in shared:
-                return "错误：请先在数据页启用示例数据集"
+                raise PermissionError("请先在数据页启用示例数据集")
             if name.startswith("dataset_") and name not in dataset_names:
-                return "错误：无权访问该数据表"
+                raise PermissionError("无权访问该数据表")
 
     options = f"-c statement_timeout={settings.sql_timeout_seconds * 1000}"
     with _connect(options=options) as conn:
@@ -126,6 +127,14 @@ def query_database(sql: str, user_id: str = "") -> str:
             cur.execute(sql)
             columns = [desc.name for desc in cur.description] if cur.description else []
             rows = cur.fetchmany(settings.query_row_limit)
+    return columns, rows
+
+
+def query_database(sql: str, user_id: str = "") -> str:
+    try:
+        columns, rows = fetch_rows(sql, user_id)
+    except (PermissionError, ValueError) as exc:
+        return f"错误：{exc}"
 
     payload = {
         "columns": columns,

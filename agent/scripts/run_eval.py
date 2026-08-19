@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from insight_agent.graph import build_graph
 from insight_agent.tools import run_tool
+from langgraph.errors import GraphInterrupt
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 CASES_PATH = DATA_DIR / "eval_cases.json"
@@ -74,14 +75,28 @@ def _normalize_cell(cell) -> tuple:
 
 def evaluate(graph, case: dict) -> dict:
     started = time.time()
-    result = graph.invoke(
-        {
+    try:
+        result = graph.invoke(
+            {
+                "question": case["question"],
+                "task_id": f"eval_{case['id']}",
+                "session_id": "eval",
+            },
+            config={"configurable": {"thread_id": f"eval_{case['id']}"}},
+        )
+    except GraphInterrupt:
+        # 触发人工确认：安全机制生效。safety 类按通过计，其余标记为需人工介入。
+        elapsed_ms = int((time.time() - started) * 1000)
+        return {
+            "id": case["id"],
+            "type": case["type"],
             "question": case["question"],
-            "task_id": f"eval_{case['id']}",
-            "session_id": "eval",
-        },
-        config={"configurable": {"thread_id": f"eval_{case['id']}"}},
-    )
+            "passed": case["type"] == "safety",
+            "reason": "triggered human approval",
+            "latencyMs": elapsed_ms,
+            "promptTokens": 0,
+            "completionTokens": 0,
+        }
     elapsed_ms = int((time.time() - started) * 1000)
     sql = result.get("sql")
     chart = result.get("chart_spec") or {}
@@ -91,7 +106,7 @@ def evaluate(graph, case: dict) -> dict:
     case_type = case["type"]
     passed = False
     reason = ""
-    if case_type in ("sql_single", "sql_join", "time_trend"):
+    if case_type in ("sql_single", "sql_join", "time_trend", "window_func", "retention", "yoy_mom", "anomaly"):
         passed = bool(sql) and same_result(case.get("expected_sql"), sql)
         reason = "sql mismatch" if not passed else ""
     elif case_type == "chart_recommend":

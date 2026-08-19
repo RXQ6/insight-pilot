@@ -7,6 +7,32 @@ from langgraph.types import interrupt
 from .config import settings
 from .prompts import ANSWER_SYSTEM, CHART_SYSTEM, INTENT_SYSTEM, PLAN_SYSTEM, SQL_SYSTEM
 from .tools import run_tool
+from .tools.export import export_csv, wants_export
+
+# 按 DeepSeek 公开计价粗略折算（每 token 成本，元）
+TOKEN_COST = {"prompt": 1e-6, "completion": 2e-6}
+
+BUDGET_MESSAGE = (
+    "本次任务的成本预算已用完，已停止继续执行。"
+    "请缩小查询范围或提高预算后重试。"
+)
+
+
+def _usage_cost(usage: list[dict]) -> float:
+    return sum(
+        item.get("prompt_tokens", 0) * TOKEN_COST["prompt"]
+        + item.get("completion_tokens", 0) * TOKEN_COST["completion"]
+        for item in usage
+    )
+
+
+def _budget_exceeded(state: dict, extra_usage: list[dict]) -> bool:
+    """累计已用成本 + 本次新增成本是否超过任务预算（cost_cap_cny）。"""
+    cap = state.get("cost_cap_cny")
+    if not cap or cap <= 0:
+        return False
+    total = _usage_cost(state.get("usage") or []) + _usage_cost(extra_usage)
+    return total > cap
 
 
 def _llm() -> ChatOpenAI:
@@ -118,8 +144,11 @@ def plan(state: dict) -> dict:
 
 
 def agent_step(state: dict) -> dict:
+    max_steps = state.get("max_steps")
+    if max_steps is None:
+        max_steps = settings.max_steps
     step_count = state.get("step_count", 0)
-    if step_count >= settings.max_steps:
+    if step_count >= max_steps:
         return {"step_count": step_count, "final_answer": "步骤过多，已自动停止，请简化问题后重试。"}
 
     if state.get("intent") == "knowledge_qa":
@@ -140,10 +169,16 @@ def agent_step(state: dict) -> dict:
             return {"final_answer": "当前没有可用数据，请先在“数据”页启用示例数据集或上传 CSV。", "usage": []}
     enum_values = run_tool("get_enum_values", {"user_id": state.get("user_id", "")})
     history = _history_text(state)
+    fix_hint = state.get("fix_hint")
     user_content = (
         f"表结构：\n{schema}\n\n字段取值示例：\n{enum_values}\n\n"
         f"问题：{state['question']}\n请生成可执行 SQL。"
     )
+    if fix_hint:
+        user_content += (
+            f"\n\n注意：上次尝试执行失败，请根据以下错误修正后重新生成 SQL"
+            f"（必须与上次不同）：\n{fix_hint}"
+        )
     if history:
         user_content = f"历史对话：\n{history}\n\n{user_content}"
     response = _llm().invoke(
@@ -152,9 +187,13 @@ def agent_step(state: dict) -> dict:
             {"role": "user", "content": user_content},
         ]
     )
+    usage = _usage(response)
+    if _budget_exceeded(state, usage):
+        return {"final_answer": BUDGET_MESSAGE, "usage": usage}
+
     sql = _extract_sql(response.content or "")
     if not sql:
-        return {"errors": ["未能生成 SQL"], "step_count": step_count + 1, "usage": _usage(response)}
+        return {"errors": ["未能生成 SQL"], "step_count": step_count + 1, "usage": usage}
 
     needs_approval = (
         any(keyword in state["question"] for keyword in ("导出", "全表", "所有字段所有行", "全部记录"))
@@ -164,24 +203,62 @@ def agent_step(state: dict) -> dict:
         )
     )
     if needs_approval:
-        interrupt({"tool": "query_database", "reason": "该查询可能返回全表数据，需要人工确认后执行"})
+        decision = interrupt({"tool": "query_database", "reason": "该查询可能返回全表数据，需要人工确认后执行"})
+        if isinstance(decision, dict) and decision.get("approved") is False:
+            return {
+                "final_answer": "查询已被拒绝，未执行任何操作。",
+                "step_count": step_count + 1,
+                "usage": usage,
+            }
 
     result = run_tool("query_database", {"sql": sql, "user_id": state.get("user_id", "")})
+    if isinstance(result, str) and result.startswith("错误"):
+        # 工具层拦截/执行失败：进入 errors 交给 reflect 纠错后重试
+        return {
+            "errors": [result[:500]],
+            "sql": sql,
+            "tool_calls": [
+                {"name": "query_database", "arguments": {"sql": sql}, "status": "error", "output": result[:500]}
+            ],
+            "step_count": step_count + 1,
+            "usage": usage,
+        }
+    tool_calls = [{"name": "query_database", "arguments": {"sql": sql}, "status": "success"}]
+    file_payload = None
+    if wants_export(state["question"]):
+        try:
+            file_payload = json.loads(export_csv(sql, user_id=state.get("user_id", "")))
+            tool_calls.append({"name": "export_csv", "arguments": {"sql": sql}, "status": "success"})
+        except Exception as exc:  # noqa: BLE001
+            tool_calls.append({"name": "export_csv", "arguments": {"sql": sql}, "status": "error", "output": str(exc)})
     return {
         "sql": sql,
         "query_result": [{"sql": sql, "result": result}],
-        "tool_calls": [
-            {"name": "query_database", "arguments": {"sql": sql}, "status": "success"}
-        ],
+        "file": file_payload,
+        "tool_calls": tool_calls,
         "step_count": step_count + 1,
-        "usage": _usage(response),
+        "usage": usage,
     }
 
 
 def reflect(state: dict) -> dict:
-    if state.get("errors"):
-        return {"errors": [], "reflect_note": "检测到错误，重试一次"}
-    return {"reflect_note": "无需修正"}
+    """质检节点：把上次的 SQL、执行错误组装成 fix_hint 回喂给 agent_step 重新生成。"""
+    errors = state.get("errors") or []
+    if not errors:
+        return {"reflect_note": "无需修正", "fix_hint": None}
+
+    parts = []
+    last_sql = state.get("sql")
+    if last_sql:
+        parts.append(f"上次 SQL：{last_sql}")
+    query_result = state.get("query_result") or []
+    if query_result and isinstance(query_result[-1], dict):
+        last_result = query_result[-1].get("result")
+        if isinstance(last_result, str) and last_result.startswith("错误"):
+            parts.append(f"执行结果：{last_result[:500]}")
+    parts.append("错误：" + "；".join(str(error)[:200] for error in errors))
+    hint = "\n".join(parts) if parts else "上次尝试失败，请换一种写法重试"
+    return {"errors": [], "reflect_note": "检测到错误，已带上错误信息重新生成 SQL", "fix_hint": hint}
 
 
 def answer(state: dict) -> dict:
@@ -201,7 +278,7 @@ def answer(state: dict) -> dict:
     usage = _usage(response)
     chart_spec = None
     chart_usage = []
-    if state.get("query_result"):
+    if state.get("query_result") and not _budget_exceeded(state, usage):
         chart_spec, chart_usage = _generate_chart_spec(state["question"], context)
     return {
         "final_answer": response.content or "无法生成回答",

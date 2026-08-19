@@ -25,6 +25,21 @@ def _publish(streams: RedisStreams, task_id: str, event_type: str, content) -> N
     )
 
 
+def _publish_dlq(streams: RedisStreams, task_id: str, error: str) -> None:
+    """失败任务投递到死信队列，避免静默丢失，便于运维排查。"""
+    try:
+        streams.publish(
+            settings.task_dlq_stream,
+            {
+                "taskId": task_id or "unknown",
+                "error": error,
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("failed to publish DLQ entry")
+
+
 def _load_history(task: TaskMessage) -> list[dict]:
     if not task.history:
         return []
@@ -67,9 +82,12 @@ def _handle_item(streams: RedisStreams, task_id: str, item, state: dict) -> dict
         if node == "agent_step":
             for call in payload.get("tool_calls", []):
                 _publish(streams, task_id, "tool_call", call)
+            if payload.get("file"):
+                state["file"] = payload["file"]
         if node == "answer":
             state["final_answer"] = payload.get("final_answer")
             state["chart_spec"] = payload.get("chart_spec")
+            state["file"] = payload.get("file") or state["file"]
         state["usage"].extend(payload.get("usage", []))
     return state
 
@@ -78,6 +96,7 @@ def _emit_updates(streams: RedisStreams, task_id: str, stream, started: float) -
     state = {
         "final_answer": None,
         "chart_spec": None,
+        "file": None,
         "usage": [],
         "interrupted": False,
         "reason": "approval required",
@@ -87,6 +106,9 @@ def _emit_updates(streams: RedisStreams, task_id: str, stream, started: float) -
 
     if state["final_answer"]:
         result_payload = {"answer": state["final_answer"]}
+        if state.get("file"):
+            result_payload["file"] = state["file"]
+            _publish(streams, task_id, "file", state["file"])
         if state["chart_spec"]:
             result_payload["chartSpec"] = state["chart_spec"]
             _publish(streams, task_id, "chart", state["chart_spec"])
@@ -142,6 +164,8 @@ def run_worker() -> None:
                             "session_id": task.sessionId,
                             "history": _load_history(task),
                             "user_id": task.userId,
+                            "max_steps": task.maxSteps,
+                            "cost_cap_cny": task.costCapCny,
                         },
                         config={"configurable": {"thread_id": task.taskId}},
                         stream_mode=["updates", "messages"],
@@ -159,10 +183,12 @@ def run_worker() -> None:
                 except Exception as exc:  # noqa: BLE001
                     logger.exception("task %s failed", task.taskId)
                     _publish(streams, task.taskId, "error", str(exc))
+                    _publish_dlq(streams, task.taskId, str(exc))
                 finally:
                     streams.ack(settings.task_input_stream, settings.consumer_group, message_id)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("worker loop error")
+                _publish_dlq(streams, fields.get("taskId", ""), str(exc))
                 try:
                     streams.ack(settings.task_input_stream, settings.consumer_group, message_id)
                 except Exception:

@@ -3,6 +3,7 @@ from typing import Callable
 
 from .chart import generate_chart
 from .db import get_enum_values, get_schema, query_database
+from .export import export_csv
 from .knowledge import query_knowledge_base
 from .python_sandbox import execute_python
 
@@ -50,6 +51,12 @@ TOOLS: list[Tool] = [
             "title": {"type": "string"},
         },
         handler=generate_chart,
+    ),
+    Tool(
+        name="export_csv",
+        description="将只读 SQL 的查询结果导出为 CSV 下载文件",
+        parameters={"sql": {"type": "string", "description": "SELECT / WITH 语句"}},
+        handler=export_csv,
     ),
     Tool(
         name="query_knowledge_base",
