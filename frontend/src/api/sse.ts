@@ -9,6 +9,7 @@ const EVENT_NAMES = [
   'result',
   'done',
   'error',
+  'file',
 ]
 
 export interface SseHandlers {

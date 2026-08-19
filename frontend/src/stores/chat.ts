@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { connectTaskEvents } from '../api/sse'
 import { sessionApi } from '../api/sessions'
 import { taskApi } from '../api/tasks'
-import type { ChartSpec, Message, TaskEvent, TaskOutput, ToolCallEvent } from '../types'
+import type { ChartSpec, FileEvent, Message, TaskEvent, TaskOutput, ToolCallEvent } from '../types'
 
 export interface TaskMetrics {
   latencyMs: number
@@ -39,6 +39,7 @@ interface ChatState {
   toolCalls: ToolCallEvent[]
   approval: ApprovalState | null
   metrics: TaskMetrics | null
+  pendingFile: FileEvent | null
   loadMessages: (sessionId: number) => Promise<void>
   send: (sessionId: number, text: string) => Promise<void>
   resolveApproval: (approved: boolean) => Promise<void>
@@ -101,11 +102,20 @@ export const useChatStore = create<ChatState>((set) => {
               role: 'assistant',
               content: output?.answer ?? '已完成分析',
               chart: output?.chartSpec ?? null,
+              file: state.pendingFile,
               createdAt: new Date().toISOString(),
             },
           ],
           streaming: '',
+          pendingFile: null,
         }))
+        break
+      }
+      case 'file': {
+        const file = (event.file ?? content) as FileEvent | null
+        if (file && file.filename) {
+          set({ pendingFile: file })
+        }
         break
       }
       case 'done': {
@@ -148,16 +158,18 @@ export const useChatStore = create<ChatState>((set) => {
     toolCalls: [],
     approval: null,
     metrics: null,
+    pendingFile: null,
 
     async loadMessages(sessionId) {
       const items = await sessionApi.messages(sessionId)
       set({
-        messages: items.map((item) => ({ ...item, chart: null })),
+        messages: items.map((item) => ({ ...item, chart: null, file: null })),
         status: 'idle',
         streaming: '',
         chart: null,
         toolCalls: [],
         metrics: null,
+        pendingFile: null,
       })
     },
 
@@ -174,6 +186,7 @@ export const useChatStore = create<ChatState>((set) => {
         toolCalls: [],
         approval: null,
         metrics: null,
+        pendingFile: null,
       }))
       const task = await taskApi.create({ sessionId, message: text })
       connectTaskEvents(task.taskId, token, {
@@ -200,6 +213,7 @@ export const useChatStore = create<ChatState>((set) => {
         toolCalls: [],
         approval: null,
         metrics: null,
+        pendingFile: null,
       })
     },
   }

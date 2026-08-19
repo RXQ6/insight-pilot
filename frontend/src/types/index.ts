@@ -16,7 +16,15 @@ export interface Message {
   content: string
   taskId?: string | null
   chart?: ChartSpec | null
+  file?: FileEvent | null
   createdAt: string
+}
+
+export interface FileEvent {
+  filename: string
+  mime: string
+  rowCount?: number
+  contentBase64: string
 }
 
 export interface ChartSpec {
@@ -62,6 +70,7 @@ export interface TaskEvent {
     | 'result'
     | 'done'
     | 'error'
+    | 'file'
   taskId?: string
   status?: string
   stage?: string
@@ -70,6 +79,7 @@ export interface TaskEvent {
   args?: Record<string, unknown>
   chartSpec?: ChartSpec
   output?: TaskOutput
+  file?: FileEvent
   latencyMs?: number
   costCny?: number
   code?: string
