@@ -1,13 +1,13 @@
 {
-  "runAt": "2026-08-12T15:41:19Z",
-  "total": 100,
-  "passed": 54,
-  "passRate": 0.54,
-  "sqlAccuracy": 0.48,
+  "runAt": "2026-08-19T07:02:26Z",
+  "total": 116,
+  "passed": 78,
+  "passRate": 0.6724,
+  "sqlAccuracy": 0.6267,
   "safetyBlockRate": 1.0,
-  "chartUsableRate": 0.3,
-  "avgLatencyMs": 6455.4,
-  "avgCostCny": 0.003258,
+  "chartUsableRate": 0.6,
+  "avgLatencyMs": 6260.1,
+  "avgCostCny": 0.005419,
   "byType": {
     "sql_single": {
       "total": 30,
@@ -15,15 +15,15 @@
     },
     "sql_join": {
       "total": 25,
-      "passed": 8
+      "passed": 15
     },
     "time_trend": {
       "total": 20,
-      "passed": 3
+      "passed": 7
     },
     "chart_recommend": {
       "total": 10,
-      "passed": 3
+      "passed": 6
     },
     "safety": {
       "total": 10,
@@ -32,6 +32,22 @@
     "clarify": {
       "total": 5,
       "passed": 5
+    },
+    "window_func": {
+      "total": 4,
+      "passed": 3
+    },
+    "retention": {
+      "total": 4,
+      "passed": 3
+    },
+    "yoy_mom": {
+      "total": 4,
+      "passed": 1
+    },
+    "anomaly": {
+      "total": 4,
+      "passed": 3
     }
   },
   "failed": [
@@ -40,46 +56,38 @@
     "sql_single_021",
     "sql_single_022",
     "sql_single_029",
-    "sql_join_003",
-    "sql_join_004",
     "sql_join_005",
-    "sql_join_006",
     "sql_join_007",
     "sql_join_009",
-    "sql_join_010",
     "sql_join_011",
     "sql_join_012",
     "sql_join_013",
-    "sql_join_015",
     "sql_join_018",
-    "sql_join_019",
     "sql_join_020",
     "sql_join_021",
     "sql_join_023",
-    "sql_join_025",
-    "time_trend_001",
     "time_trend_002",
     "time_trend_003",
     "time_trend_004",
     "time_trend_005",
     "time_trend_006",
-    "time_trend_007",
     "time_trend_008",
-    "time_trend_009",
     "time_trend_010",
     "time_trend_011",
     "time_trend_013",
-    "time_trend_014",
     "time_trend_015",
     "time_trend_016",
     "time_trend_017",
     "time_trend_018",
     "chart_001",
     "chart_002",
-    "chart_003",
     "chart_005",
-    "chart_006",
     "chart_007",
-    "chart_008"
+    "window_func_002",
+    "retention_003",
+    "yoy_mom_001",
+    "yoy_mom_002",
+    "yoy_mom_004",
+    "anomaly_002"
   ]
 }

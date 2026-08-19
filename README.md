@@ -20,10 +20,11 @@ cd agent
 | 指标 | 数值 | 说明 |
 |---|---|---|
 | 评测集 | 116 条 | 基础：单表/多表/时间趋势/图表/安全/追问；进阶：窗口函数/留存/同比环比/异常检测 |
-| SQL 准确率 | 48%（基线） | `agent/data/eval_report.json`，持续迭代中 |
+| 总通过率 | 67.2%（迭代前 54%） | prompt 工程 + 反思纠错驱动迭代，`agent/data/eval_report.json` |
+| SQL 准确率 | 62.7%（迭代前 48%） | 时间模板/统计口径/多表 few-shot 注入 |
 | 安全拦截率 | 100% | 只读 SQL + 沙箱 + 越权防护 |
-| 平均端到端延迟 | ~6.5s（基线） | 含 LLM 多轮调用 |
-| 单次平均成本 | ~¥0.003（基线） | DeepSeek，每任务成本上限强制中断 |
+| 平均端到端延迟 | ~6.3s | 含 LLM 多轮调用 |
+| 单次平均成本 | ~¥0.005 | DeepSeek，每任务成本上限强制中断 |
 | 工程质量 | 测试 + CI | pytest / JUnit / GitHub Actions 三端流水线 |
 
 ## 功能
@@ -36,6 +37,10 @@ cd agent
 - 评测体系：116 条评测集（基础 + 窗口函数/留存/同比环比/异常检测等进阶垂直场景）与自动化报告
 - 成本控制：每任务成本上限强制中断，token/延迟/费用回传展示
 - 可靠性与安全：失败任务进入死信队列（DLQ）可查询；任务/会话接口越权防护
+
+## 开源贡献
+
+- [langchain-ai/docs PR #5585](https://github.com/langchain-ai/docs/pull/5585)：向 LangGraph 官方文档的 Reducers 章节补充 "Resetting a reducer field"——本项目中 `Annotated[list, operator.add]` 的 errors 字段无法被 `[]` 清空导致 Agent 反思循环死循环，修复（[`7510aa5`](https://github.com/RXQ6/insight-pilot/commit/7510aa5)）后回馈官方文档（全部 CI 检查通过，review 中）
 
 ## 架构
 
