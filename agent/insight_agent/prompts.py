@@ -78,6 +78,62 @@ JOIN products p ON p.id = oi.product_id
 WHERE o.status = 'refunded'
 ```
 
+问题：6月每周订单金额是多少？
+```sql
+SELECT date_trunc('week', order_date) AS week, sum(amount) AS total
+FROM orders
+WHERE order_date >= '2026-06-01' AND order_date < '2026-07-01'
+GROUP BY week
+ORDER BY week
+```
+
+问题：6月上半月和下半月销售额对比是多少？
+```sql
+SELECT CASE WHEN order_date < '2026-06-16' THEN '上半月' ELSE '下半月' END AS half, sum(amount) AS total
+FROM orders
+WHERE order_date >= '2026-06-01' AND order_date < '2026-07-01'
+GROUP BY half
+```
+
+问题：每月日均订单数是多少？
+```sql
+SELECT to_char(order_date, 'YYYY-MM') AS month, round(count(*)::numeric / 30, 2) AS daily_avg
+FROM orders
+GROUP BY month
+ORDER BY month
+```
+
+问题：6月订单金额比5月增长了多少？
+```sql
+SELECT round(coalesce((SELECT sum(amount) FROM orders WHERE order_date >= '2026-06-01' AND order_date < '2026-07-01'), 0) - coalesce((SELECT sum(amount) FROM orders WHERE order_date >= '2026-05-01' AND order_date < '2026-06-01'), 0), 2) AS mom_diff
+```
+
+问题：每个客户的订单数是多少？
+```sql
+SELECT c.name, count(o.id) AS cnt
+FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.id
+GROUP BY c.name
+```
+
+问题：购买次数最多的客户是谁？总消费多少？
+```sql
+SELECT c.name, count(o.id) AS cnt, coalesce(sum(o.amount), 0) AS total
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+GROUP BY c.name
+ORDER BY cnt DESC
+LIMIT 1
+```
+
+问题：单价高于平均价格的商品被下单多少次？
+```sql
+SELECT count(*) AS cnt
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id
+WHERE oi.price > (SELECT avg(price) FROM products)
+```
+
 只输出一个 ```sql 代码块，不要解释，不要多余文字。
 """
 
