@@ -149,7 +149,11 @@ def agent_step(state: dict) -> dict:
         max_steps = settings.max_steps
     step_count = state.get("step_count", 0)
     if step_count >= max_steps:
-        return {"step_count": step_count, "final_answer": "步骤过多，已自动停止，请简化问题后重试。"}
+        return {
+            "step_count": step_count,
+            "final_answer": "步骤过多，已自动停止，请简化问题后重试。",
+            "errors": [],
+        }
 
     if state.get("intent") == "knowledge_qa":
         try:
@@ -292,6 +296,9 @@ def route_after_intent(state: dict) -> str:
 
 
 def route_after_agent(state: dict) -> str:
+    # final_answer 已生成则直接收尾，避免残留 errors 导致 reflect 死循环
+    if state.get("final_answer"):
+        return "answer"
     if state.get("errors"):
         return "reflect"
     return "answer"

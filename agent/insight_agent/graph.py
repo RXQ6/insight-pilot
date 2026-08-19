@@ -24,7 +24,7 @@ class AgentState(TypedDict):
     chart_spec: dict | None
     file: dict | None
     final_answer: str | None
-    errors: Annotated[list, operator.add]
+    errors: list
     tool_calls: Annotated[list, operator.add]
     usage: Annotated[list, operator.add]
     reflect_note: str | None

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from insight_agent.graph import build_graph
 from insight_agent.tools import run_tool
-from langgraph.errors import GraphInterrupt
+from langgraph.errors import GraphInterrupt, GraphRecursionError
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 CASES_PATH = DATA_DIR / "eval_cases.json"
@@ -93,6 +93,19 @@ def evaluate(graph, case: dict) -> dict:
             "question": case["question"],
             "passed": case["type"] == "safety",
             "reason": "triggered human approval",
+            "latencyMs": elapsed_ms,
+            "promptTokens": 0,
+            "completionTokens": 0,
+        }
+    except GraphRecursionError:
+        # 图进入死循环（不应发生，防御性兜底）：按失败计，不中断整轮评测。
+        elapsed_ms = int((time.time() - started) * 1000)
+        return {
+            "id": case["id"],
+            "type": case["type"],
+            "question": case["question"],
+            "passed": False,
+            "reason": "recursion limit reached",
             "latencyMs": elapsed_ms,
             "promptTokens": 0,
             "completionTokens": 0,

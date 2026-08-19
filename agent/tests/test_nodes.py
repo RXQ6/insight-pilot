@@ -191,6 +191,22 @@ class TestReflect(unittest.TestCase):
         self.assertEqual(out["reflect_note"], "无需修正")
 
 
+class TestRouting(unittest.TestCase):
+    def test_final_answer_always_routes_to_answer(self):
+        # 修复死循环的关键：即使 errors 残留，有 final_answer 也必须去 answer
+        self.assertEqual(nodes.route_after_agent({"final_answer": "done", "errors": ["x"]}), "answer")
+        self.assertEqual(nodes.route_after_agent({"errors": ["x"]}), "reflect")
+        self.assertEqual(nodes.route_after_agent({}), "answer")
+
+    def test_max_steps_clears_errors(self):
+        with mock.patch.object(
+            nodes, "_llm", side_effect=AssertionError("LLM must not be called")
+        ):
+            out = nodes.agent_step(make_state(max_steps=0, errors=["旧错误"]))
+        self.assertIn("步骤过多", out["final_answer"])
+        self.assertEqual(out["errors"], [])
+
+
 class TestAnswer(unittest.TestCase):
     def test_budget_skips_chart(self):
         llm = FakeLLM("结论：总数为 10", usage={"prompt_tokens": 5000, "completion_tokens": 1000})
