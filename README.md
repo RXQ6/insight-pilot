@@ -1,15 +1,41 @@
 # InsightPilot
 
-InsightPilot 是一个面向数据分析场景的自主 Agent 项目：用户用自然语言提问，Agent 自主完成意图理解、任务规划、SQL 生成与执行、Python 分析、图表生成和结果解释，并通过 Java 控制面、Redis 消息队列和 React 工作台形成完整产品闭环。
+> 全链路闭环的 ChatBI 自主 Agent：自然语言提问 → 意图分类 → 规划 → 只读 SQL / Python 沙箱 / 知识库工具循环 → 反思 → 流式回答 + 图表 + CSV 导出，由 Spring Boot 控制面、Redis Streams 消息队列与 React 工作台支撑，带 100 条评测集、人工确认与成本预算体系。
+
+[![CI](https://github.com/RXQ6/insight-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/RXQ6/insight-pilot/actions/workflows/ci.yml)
+
+## 演示
+
+API 层一键演示完整业务闭环（注册 → 自然语言问答 → 图表 → 人工确认 → 导出 CSV → DLQ 查询）：
+
+```bash
+cd agent
+.venv/Scripts/python scripts/demo_api.py
+```
+
+前端工作台访问 `http://localhost:5173` 即可体验对话、工具轨迹、图表与数据上传。
+
+## 关键指标
+
+| 指标 | 数值 | 说明 |
+|---|---|---|
+| 评测集 | 116 条 | 基础：单表/多表/时间趋势/图表/安全/追问；进阶：窗口函数/留存/同比环比/异常检测 |
+| SQL 准确率 | 48%（基线） | `agent/data/eval_report.json`，持续迭代中 |
+| 安全拦截率 | 100% | 只读 SQL + 沙箱 + 越权防护 |
+| 平均端到端延迟 | ~6.5s（基线） | 含 LLM 多轮调用 |
+| 单次平均成本 | ~¥0.003（基线） | DeepSeek，每任务成本上限强制中断 |
+| 工程质量 | 测试 + CI | pytest / JUnit / GitHub Actions 三端流水线 |
 
 ## 功能
 
 - 自然语言数据分析：查询、对比、趋势、图表推荐
 - LangGraph 自主流程：意图分类、规划、工具循环、反思、回答
-- 工具层：只读 SQL、Python 沙箱、ECharts 图表、知识库检索
+- 工具层：只读 SQL、Python 沙箱、ECharts 图表、知识库检索、CSV 结果导出
 - Java 控制面：JWT 鉴权、会话与任务管理、Redis Streams、SSE 流式推送
-- React 工作台：流式对话、图表、工具轨迹、人工确认
-- 评测体系：100 条评测集与自动化报告
+- React 工作台：流式对话、图表、工具轨迹、人工确认、文件下载
+- 评测体系：116 条评测集（基础 + 窗口函数/留存/同比环比/异常检测等进阶垂直场景）与自动化报告
+- 成本控制：每任务成本上限强制中断，token/延迟/费用回传展示
+- 可靠性与安全：失败任务进入死信队列（DLQ）可查询；任务/会话接口越权防护
 
 ## 架构
 
@@ -99,6 +125,7 @@ psql -U insight -d insight -f agent/data/sample_data.sql
 | GET | /api/tasks/{taskId}/events | SSE 事件流 |
 | GET | /api/tasks/{taskId}/trace | 工具调用轨迹 |
 | POST | /api/tasks/{taskId}/approve | 人工确认 |
+| GET | /api/tasks/dlq | 死信队列最近失败任务 |
 | GET | /api/eval/summary | 评测摘要 |
 | GET | /api/health | 健康检查 |
 
@@ -129,8 +156,10 @@ frontend/    React 工作台
 
 ## 后续规划
 
-- 人工确认后 Worker 断点恢复
-- MCP 工具标准化
+- 自动化测试（pytest / JUnit + Testcontainers）与 GitHub Actions CI
+- MCP 客户端集成：Worker 通过 MCP 调用外部工具
+- Langfuse 追踪：任务级工具调用链、成本与延迟可视化
+- SSE 断线重连重放
 - Dify 低代码对照
 - 在线部署与 Docker 全栈镜像
 
