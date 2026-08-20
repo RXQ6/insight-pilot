@@ -44,6 +44,7 @@ def main() -> None:
             {
                 "id": case["id"],
                 "question": case["question"],
+                "difficulty": case.get("difficulty", "easy"),
                 "expected_title": case["expected_title"],
                 "expected_content": case.get("expected_content", ""),
                 "hits_at": {
@@ -66,12 +67,26 @@ def main() -> None:
         for k in ks:
             doc[f"hits@{k}"] += 1 if item["hits_at"][k] else 0
 
+    # 按难度分层：easy（领域提问）/ hard（口语化）
+    by_difficulty = {}
+    for item in results:
+        diff = item.get("difficulty", "easy")
+        bucket = by_difficulty.setdefault(diff, {"total": 0, **{f"recall@{k}": 0 for k in ks}})
+        bucket["total"] += 1
+        for k in ks:
+            bucket[f"recall@{k}"] += 1 if item["hits_at"][k] else 0
+    for diff, bucket in by_difficulty.items():
+        t = bucket["total"]
+        for k in ks:
+            bucket[f"recall@{k}"] = round(bucket[f"recall@{k}"] / t, 4) if t else 0.0
+
     report = {
         "runAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "mode": "hybrid (keyword+vector, RRF)" if settings.embedding_enabled else "keyword only",
         "ks": ks,
         "total": total,
         "recallAtK": {f"recall@{k}": recall[k] for k in ks},
+        "recallByDifficulty": by_difficulty,
         "avgLatencyMs": round(sum(item["latencyMs"] for item in results) / total, 1),
         "byDoc": by_doc,
         "failed": [item["id"] for item in results if not item["hits_at"][max_k]],
