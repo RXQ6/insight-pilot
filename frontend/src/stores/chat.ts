@@ -40,6 +40,7 @@ interface ChatState {
   approval: ApprovalState | null
   metrics: TaskMetrics | null
   pendingFile: FileEvent | null
+  pendingTaskId: string | null
   loadMessages: (sessionId: number) => Promise<void>
   send: (sessionId: number, text: string) => Promise<void>
   resolveApproval: (approved: boolean) => Promise<void>
@@ -103,6 +104,7 @@ export const useChatStore = create<ChatState>((set) => {
               content: output?.answer ?? '已完成分析',
               chart: output?.chartSpec ?? null,
               file: state.pendingFile,
+              taskId: state.pendingTaskId,
               createdAt: new Date().toISOString(),
             },
           ],
@@ -159,6 +161,7 @@ export const useChatStore = create<ChatState>((set) => {
     approval: null,
     metrics: null,
     pendingFile: null,
+    pendingTaskId: null,
 
     async loadMessages(sessionId) {
       const items = await sessionApi.messages(sessionId)
@@ -170,6 +173,7 @@ export const useChatStore = create<ChatState>((set) => {
         toolCalls: [],
         metrics: null,
         pendingFile: null,
+        pendingTaskId: null,
       })
     },
 
@@ -187,8 +191,10 @@ export const useChatStore = create<ChatState>((set) => {
         approval: null,
         metrics: null,
         pendingFile: null,
+        pendingTaskId: null,
       }))
       const task = await taskApi.create({ sessionId, message: text })
+      set({ pendingTaskId: task.taskId })
       connectTaskEvents(task.taskId, token, {
         onEvent: handleEvent,
         onError: () => set({ status: 'error' }),
@@ -214,6 +220,7 @@ export const useChatStore = create<ChatState>((set) => {
         approval: null,
         metrics: null,
         pendingFile: null,
+        pendingTaskId: null,
       })
     },
   }

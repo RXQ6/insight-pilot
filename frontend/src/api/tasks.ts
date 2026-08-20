@@ -9,4 +9,8 @@ export const taskApi = {
     api.get<{ taskId: string; steps: unknown[] }>(`/tasks/${taskId}/trace`).then((r) => r.data),
   approve: (taskId: string, approved: boolean, note: string) =>
     api.post<Task>(`/tasks/${taskId}/approve`, { approved, note }).then((r) => r.data),
+  feedback: (taskId: string, helpful: boolean, comment?: string) =>
+    api
+      .post<{ recorded: boolean }>(`/tasks/${taskId}/feedback`, { helpful, comment: comment ?? '' })
+      .then((r) => r.data),
 }

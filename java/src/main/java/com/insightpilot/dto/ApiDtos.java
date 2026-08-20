@@ -53,6 +53,9 @@ public final class ApiDtos {
     public record ApproveRequest(boolean approved, String note) {
     }
 
+    public record FeedbackRequest(boolean helpful, String comment) {
+    }
+
     public record ToolTraceItem(String tool, String status, String summary, long latencyMs) {
     }
 

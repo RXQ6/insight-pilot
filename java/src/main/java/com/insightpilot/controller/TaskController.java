@@ -3,6 +3,7 @@ package com.insightpilot.controller;
 import com.insightpilot.dto.ApiDtos.ApproveRequest;
 import com.insightpilot.dto.ApiDtos.CreateTaskRequest;
 import com.insightpilot.dto.ApiDtos.DlqItem;
+import com.insightpilot.dto.ApiDtos.FeedbackRequest;
 import com.insightpilot.dto.ApiDtos.TaskListItem;
 import com.insightpilot.dto.ApiDtos.TaskResponse;
 import com.insightpilot.dto.ApiDtos.TraceResponse;
@@ -67,6 +68,14 @@ public class TaskController {
                                 @PathVariable String taskId,
                                 @RequestBody ApproveRequest request) {
         return taskService.approve(authService.userId(authentication.getName()), taskId, request);
+    }
+
+    @PostMapping("/{taskId}/feedback")
+    public Map<String, Boolean> feedback(Authentication authentication,
+                                         @PathVariable String taskId,
+                                         @RequestBody FeedbackRequest request) {
+        taskService.feedback(authService.userId(authentication.getName()), taskId, request);
+        return Map.of("recorded", true);
     }
 
     @GetMapping(value = "/{taskId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

@@ -5,15 +5,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.insightpilot.dto.ApiDtos.ApproveRequest;
 import com.insightpilot.dto.ApiDtos.CreateTaskRequest;
 import com.insightpilot.dto.ApiDtos.DlqItem;
+import com.insightpilot.dto.ApiDtos.FeedbackRequest;
 import com.insightpilot.dto.ApiDtos.TaskListItem;
 import com.insightpilot.dto.ApiDtos.TaskResponse;
 import com.insightpilot.dto.ApiDtos.ToolTraceItem;
 import com.insightpilot.dto.ApiDtos.TraceResponse;
 import com.insightpilot.entity.ChatSession;
+import com.insightpilot.entity.Feedback;
 import com.insightpilot.entity.Message;
 import com.insightpilot.entity.Task;
 import com.insightpilot.producer.TaskProducer;
 import com.insightpilot.repository.ChatSessionRepository;
+import com.insightpilot.repository.FeedbackRepository;
 import com.insightpilot.repository.MessageRepository;
 import com.insightpilot.repository.TaskRepository;
 import com.insightpilot.repository.ToolCallLogRepository;
@@ -45,6 +48,7 @@ public class TaskService {
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final FeedbackRepository feedbackRepository;
 
     @Value("${app.redis.task-dlq-stream:task:dlq}")
     private String dlqStream;
@@ -161,6 +165,19 @@ public class TaskService {
         taskProducer.resume(taskId, request.approved());
         auditService.record(userId, "approve_task", taskId, null);
         return toResponse(task);
+    }
+
+    @Transactional
+    public Map<String, Object> feedback(Long userId, String taskId, FeedbackRequest request) {
+        requireOwned(userId, taskId);
+        Feedback feedback = new Feedback();
+        feedback.setTaskId(taskId);
+        feedback.setUserId(userId);
+        feedback.setHelpful(request.helpful());
+        feedback.setComment(request.comment());
+        feedbackRepository.save(feedback);
+        auditService.record(userId, "feedback_task", taskId, request.helpful() ? "helpful" : "not_helpful");
+        return Map.of("recorded", true);
     }
 
     private TaskResponse toResponse(Task task) {
