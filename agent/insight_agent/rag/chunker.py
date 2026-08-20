@@ -1,7 +1,7 @@
 import re
 
 
-def split_markdown(text: str, max_chars: int = 800, overlap: int = 100) -> list[str]:
+def split_markdown(text: str, max_chars: int = 350, overlap: int = 100) -> list[str]:
     sections = re.split(r"(?=^#{1,4} )", text, flags=re.M)
     chunks: list[str] = []
     buffer = ""
