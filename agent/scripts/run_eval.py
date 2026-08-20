@@ -11,6 +11,54 @@ from insight_agent.graph import build_graph
 from insight_agent.tools import run_tool
 from langgraph.errors import GraphInterrupt, GraphRecursionError
 
+EVAL_RUNS_DDL = """
+CREATE TABLE IF NOT EXISTS eval_runs (
+    id BIGSERIAL PRIMARY KEY,
+    run_id VARCHAR(64),
+    total BIGINT NOT NULL,
+    passed BIGINT NOT NULL,
+    case_id BIGINT,
+    task_id VARCHAR(64),
+    pass BOOLEAN,
+    score DOUBLE PRECISION,
+    latency_ms BIGINT,
+    cost_cny DOUBLE PRECISION,
+    created_at TIMESTAMP NOT NULL
+)
+"""
+
+
+def save_summary(report: dict) -> None:
+    """把本次评测摘要写入 eval_runs 表，供 Java 控制面 /api/eval/summary 与前端评测看板读取。"""
+    try:
+        import psycopg
+
+        from insight_agent.config import settings
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] 无法导入评测入库依赖，跳过写库: {exc}")
+        return
+    try:
+        with psycopg.connect(settings.postgres_dsn, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute(EVAL_RUNS_DDL)
+                cur.execute(
+                    """
+                    INSERT INTO eval_runs (run_id, total, passed, score, latency_ms, cost_cny, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    """,
+                    (
+                        f"eval-{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}",
+                        report["total"],
+                        report["passed"],
+                        report["sqlAccuracy"],
+                        report["avgLatencyMs"],
+                        report["avgCostCny"],
+                    ),
+                )
+        print(f"[ok] 评测摘要已写入 eval_runs（total={report['total']}, passed={report['passed']}）")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] 评测摘要写库失败（不影响报告文件）: {exc}")
+
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 CASES_PATH = DATA_DIR / "eval_cases.json"
 REPORT_PATH = DATA_DIR / "eval_report.json"
@@ -204,6 +252,7 @@ def main():
         "failed": [item["id"] for item in results if not item["passed"]],
     }
     REPORT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_summary(report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
