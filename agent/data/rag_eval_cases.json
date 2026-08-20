@@ -1,210 +1,210 @@
 [
   {
     "id": "rag_001",
-    "question": "客户的区域字段有哪些取值？",
+    "question": "客户都分布在哪些地区？",
     "expected_title": "data-dictionary",
     "difficulty": "easy",
     "expected_content": "region：区域，取值：华东、华南、华北、西南、华中"
   },
   {
     "id": "rag_002",
-    "question": "订单状态有哪些枚举值？",
+    "question": "一笔订单会有哪些可能的状态？",
     "expected_title": "data-dictionary",
     "difficulty": "easy",
     "expected_content": "status：订单状态，取值：completed（已完成）、pending（待支付）、refunded（已退款）"
   },
   {
     "id": "rag_003",
-    "question": "销售额的统计口径是什么？",
+    "question": "卖出去的商品怎么算销售额？",
     "expected_title": "data-dictionary",
     "difficulty": "medium",
     "expected_content": "销售额优先使用 order_items 的 quantity * price 计算，不使用 orders.amount"
   },
   {
     "id": "rag_004",
-    "question": "order_items 表有哪些字段？",
+    "question": "订单里每一行明细都记了些什么？",
     "expected_title": "data-dictionary",
     "difficulty": "easy",
     "expected_content": "quantity：购买数量"
   },
   {
     "id": "rag_005",
-    "question": "数据库连接信息是什么？",
+    "question": "怎么连到数据库？",
     "expected_title": "ops-runbook",
     "difficulty": "easy",
     "expected_content": "业务账号 insight，只读账号 insight_readonly"
   },
   {
     "id": "rag_006",
-    "question": "任务卡住了怎么排查？",
+    "question": "任务一直没执行完，可能是什么问题？",
     "expected_title": "ops-runbook",
     "difficulty": "medium",
     "expected_content": "任务一直 pending：Worker 没启动或 Redis 连接失败"
   },
   {
     "id": "rag_007",
-    "question": "Redis 的任务输入流叫什么？",
+    "question": "任务是怎么投递给 worker 的？",
     "expected_title": "ops-runbook",
     "difficulty": "medium",
     "expected_content": "任务输入流 task:input"
   },
   {
     "id": "rag_008",
-    "question": "怎么确认服务是否正常？",
+    "question": "怎么判断整套系统已经跑起来了？",
     "expected_title": "ops-runbook",
     "difficulty": "easy",
     "expected_content": "检查 /api/health，确认 postgres 和 redis 均为 UP"
   },
   {
     "id": "rag_009",
-    "question": "时间过滤条件应该怎么写？",
+    "question": "查某段时间的数据，过滤条件怎么写？",
     "expected_title": "query-conventions",
     "difficulty": "medium",
     "expected_content": "order_date >= 'YYYY-MM-DD' AND order_date < 'YYYY-MM-DD'"
   },
   {
     "id": "rag_010",
-    "question": "用户没指定日期范围怎么办？",
+    "question": "用户没说时间范围，该怎么处理？",
     "expected_title": "query-conventions",
     "difficulty": "medium",
     "expected_content": "如果用户没有指定，先追问，不随意默认最近一个月"
   },
   {
     "id": "rag_011",
-    "question": "查询结果行数默认上限是多少？",
+    "question": "一次查询最多能返回多少行？",
     "expected_title": "query-conventions",
     "difficulty": "easy",
     "expected_content": "结果行数默认不超过 1000"
   },
   {
     "id": "rag_012",
-    "question": "聚合查询必须用什么？",
+    "question": "做分组统计的时候必须写什么？",
     "expected_title": "query-conventions",
     "difficulty": "easy",
     "expected_content": "聚合查询必须使用 GROUP BY"
   },
   {
     "id": "rag_013",
-    "question": "月报按什么分组？",
+    "question": "月度报表按什么时间粒度汇总？",
     "expected_title": "reporting-rules",
     "difficulty": "easy",
     "expected_content": "月份格式 YYYY-MM"
   },
   {
     "id": "rag_014",
-    "question": "同比和环比有什么区别？",
+    "question": "同比和环比这两个说法怎么区分？",
     "expected_title": "reporting-rules",
     "difficulty": "medium",
     "expected_content": "当前期间与上一相同期间对比"
   },
   {
     "id": "rag_015",
-    "question": "趋势分析应该先输出什么？",
+    "question": "分析趋势的时候应该先看什么？",
     "expected_title": "reporting-rules",
     "difficulty": "medium",
     "expected_content": "趋势分析优先输出时间序列，再计算变化率"
   },
   {
     "id": "rag_016",
-    "question": "销售额占比应该用什么图表？",
+    "question": "各品类占了多少份额，用什么图展示？",
     "expected_title": "reporting-rules",
     "difficulty": "medium",
     "expected_content": "占比/结构：饼图"
   },
   {
     "id": "rag_017",
-    "question": "查询结果为空怎么排查？",
+    "question": "查出来的结果是空的，可能哪里出了问题？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "easy",
     "expected_content": "检查时间范围是否超出数据区间"
   },
   {
     "id": "rag_018",
-    "question": "订单金额和明细销售额有什么区别？",
+    "question": "订单金额和卖出去的钱是一回事吗？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "medium",
     "expected_content": "明细销售额看 order_items.quantity * order_items.price"
   },
   {
     "id": "rag_019",
-    "question": "客单价怎么计算？",
+    "question": "平均一个客户大概花了多少钱？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "medium",
     "expected_content": "sum(orders.amount) / count(distinct customer_id)"
   },
   {
     "id": "rag_020",
-    "question": "退款金额怎么查？",
+    "question": "退回去的钱应该怎么统计？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "easy",
     "expected_content": "退款金额单独过滤 status = 'refunded'"
   },
   {
     "id": "rag_021",
-    "question": "促销价和原价不一样时，销售额以哪个价格为准？",
+    "question": "商品打折卖的时候，销售额按什么价格算？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "hard",
     "expected_content": "促销场景下 order_items.price 可能低于 products.price，以明细价格为准"
   },
   {
     "id": "rag_022",
-    "question": "退款率是怎么算的？",
+    "question": "有多大比例的订单最后退款了？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "medium",
     "expected_content": "退款订单数 / 全部订单数"
   },
   {
     "id": "rag_023",
-    "question": "任务进了死信队列说明什么？",
+    "question": "任务彻底失败了，去哪里看原因？",
     "expected_title": "ops-runbook",
     "difficulty": "hard",
     "expected_content": "死信队列 task:dlq"
   },
   {
     "id": "rag_024",
-    "question": "worker 重启之后审批任务卡住不继续了，怎么处理？",
+    "question": "服务重启之后有个审批一直卡着不往下走，怎么办？",
     "expected_title": "ops-runbook",
     "difficulty": "hard",
     "expected_content": "Worker 重启过会导致内存 checkpoint 丢失"
   },
   {
     "id": "rag_025",
-    "question": "订单明细 join 订单之后数据翻倍，可能是什么原因？",
+    "question": "两张表连起来之后行数变多了，可能是什么原因？",
     "expected_title": "troubleshooting-orders",
     "difficulty": "hard",
     "expected_content": "漏掉 order_items.order_id = orders.id"
   },
   {
     "id": "rag_026",
-    "question": "周报的时间分组格式是什么？",
+    "question": "按周统计的报告，时间该用什么格式表示？",
     "expected_title": "reporting-rules",
     "difficulty": "medium",
     "expected_content": "ISO 周格式 YYYY-IW"
   },
   {
     "id": "rag_027",
-    "question": "客单价按什么口径计算？",
+    "question": "客单价到底是怎么定义的？",
     "expected_title": "data-dictionary",
     "difficulty": "medium",
     "expected_content": "客单价 = sum(orders.amount) / count(distinct customers.id)"
   },
   {
     "id": "rag_028",
-    "question": "整个系统从零启动的步骤是什么？",
+    "question": "从零开始把整套环境搭起来需要几步？",
     "expected_title": "ops-runbook",
     "difficulty": "easy",
     "expected_content": "docker compose up -d db redis 启动基础设施"
   },
   {
     "id": "rag_029",
-    "question": "聚合查询的结果最多能返回多少行？",
+    "question": "分组统计之后最多能返回多少条？",
     "expected_title": "query-conventions",
     "difficulty": "easy",
     "expected_content": "结果行数默认不超过 1000"
   },
   {
     "id": "rag_030",
-    "question": "客户和订单之间的关联关系是什么？",
+    "question": "客户和订单之间是什么关系？",
     "expected_title": "data-dictionary",
     "difficulty": "medium",
     "expected_content": "orders.customer_id = customers.id"
