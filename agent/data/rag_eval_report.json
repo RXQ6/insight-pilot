@@ -1,5 +1,5 @@
 {
-  "runAt": "2026-08-20T07:05:32Z",
+  "runAt": "2026-08-20T07:15:42Z",
   "mode": "keyword only",
   "ks": [
     1,
@@ -8,11 +8,25 @@
   ],
   "total": 30,
   "recallAtK": {
-    "recall@1": 0.4333,
-    "recall@3": 0.7333,
-    "recall@5": 0.8667
+    "recall@1": 0.6333,
+    "recall@3": 0.9,
+    "recall@5": 0.9667
   },
-  "avgLatencyMs": 49.5,
+  "recallByDifficulty": {
+    "easy": {
+      "total": 20,
+      "recall@1": 0.8,
+      "recall@3": 1.0,
+      "recall@5": 1.0
+    },
+    "hard": {
+      "total": 10,
+      "recall@1": 0.3,
+      "recall@3": 0.7,
+      "recall@5": 0.9
+    }
+  },
+  "avgLatencyMs": 52.4,
   "byDoc": {
     "data-dictionary": {
       "total": 6,
@@ -22,39 +36,37 @@
     },
     "ops-runbook": {
       "total": 7,
-      "hits@1": 2,
-      "hits@3": 5,
-      "hits@5": 5
+      "hits@1": 5,
+      "hits@3": 6,
+      "hits@5": 6
     },
     "query-conventions": {
       "total": 5,
-      "hits@1": 2,
+      "hits@1": 3,
       "hits@3": 5,
       "hits@5": 5
     },
     "reporting-rules": {
       "total": 5,
-      "hits@1": 3,
-      "hits@3": 4,
+      "hits@1": 4,
+      "hits@3": 5,
       "hits@5": 5
     },
     "troubleshooting-orders": {
       "total": 7,
-      "hits@1": 0,
-      "hits@3": 2,
-      "hits@5": 5
+      "hits@1": 1,
+      "hits@3": 5,
+      "hits@5": 7
     }
   },
   "failed": [
-    "rag_008",
-    "rag_017",
-    "rag_019",
     "rag_028"
   ],
   "details": [
     {
       "id": "rag_001",
-      "question": "客户都分布在哪些地区？",
+      "question": "客户分布在哪些区域？",
+      "difficulty": "easy",
       "expected_title": "data-dictionary",
       "expected_content": "region：区域，取值：华东、华南、华北、西南、华中",
       "hits_at": {
@@ -62,15 +74,16 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 85,
+      "latencyMs": 66,
       "retrieved_titles": [
         "文档:data-dictionary",
-        "文档:troubleshooting-orders"
+        "文档:query-conventions"
       ]
     },
     {
       "id": "rag_002",
-      "question": "一笔订单会有哪些可能的状态？",
+      "question": "订单有哪些状态？",
+      "difficulty": "easy",
       "expected_title": "data-dictionary",
       "expected_content": "status：订单状态，取值：completed（已完成）、pending（待支付）、refunded（已退款）",
       "hits_at": {
@@ -78,7 +91,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 60,
+      "latencyMs": 61,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:query-conventions",
@@ -87,7 +100,8 @@
     },
     {
       "id": "rag_003",
-      "question": "卖出去的商品怎么算销售额？",
+      "question": "销售额的统计口径是什么？",
+      "difficulty": "easy",
       "expected_title": "data-dictionary",
       "expected_content": "销售额优先使用 order_items 的 quantity * price 计算，不使用 orders.amount",
       "hits_at": {
@@ -95,16 +109,18 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 30,
+      "latencyMs": 64,
       "retrieved_titles": [
         "文档:data-dictionary",
+        "文档:query-conventions",
         "文档:reporting-rules",
         "文档:troubleshooting-orders"
       ]
     },
     {
       "id": "rag_004",
-      "question": "订单里每一行明细都记了些什么？",
+      "question": "订单明细表里有哪些字段？",
+      "difficulty": "easy",
       "expected_title": "data-dictionary",
       "expected_content": "quantity：购买数量",
       "hits_at": {
@@ -112,7 +128,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 64,
+      "latencyMs": 42,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:troubleshooting-orders"
@@ -120,7 +136,8 @@
     },
     {
       "id": "rag_005",
-      "question": "怎么连到数据库？",
+      "question": "数据库的连接信息是什么？",
+      "difficulty": "easy",
       "expected_title": "ops-runbook",
       "expected_content": "业务账号 insight，只读账号 insight_readonly",
       "hits_at": {
@@ -128,7 +145,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 46,
+      "latencyMs": 43,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:ops-runbook"
@@ -136,76 +153,68 @@
     },
     {
       "id": "rag_006",
-      "question": "任务一直没执行完，可能是什么问题？",
+      "question": "任务一直 pending 怎么排查？",
+      "difficulty": "easy",
       "expected_title": "ops-runbook",
       "expected_content": "任务一直 pending：Worker 没启动或 Redis 连接失败",
       "hits_at": {
-        "1": false,
+        "1": true,
         "3": true,
         "5": true
       },
-      "latencyMs": 44,
-      "retrieved_titles": [
-        "文档:ops-runbook"
-      ]
-    },
-    {
-      "id": "rag_007",
-      "question": "任务是怎么投递给 worker 的？",
-      "expected_title": "ops-runbook",
-      "expected_content": "任务输入流 task:input",
-      "hits_at": {
-        "1": false,
-        "3": true,
-        "5": true
-      },
-      "latencyMs": 49,
-      "retrieved_titles": [
-        "文档:ops-runbook"
-      ]
-    },
-    {
-      "id": "rag_008",
-      "question": "怎么判断整套系统已经跑起来了？",
-      "expected_title": "ops-runbook",
-      "expected_content": "检查 /api/health，确认 postgres 和 redis 均为 UP",
-      "hits_at": {
-        "1": false,
-        "3": false,
-        "5": false
-      },
-      "latencyMs": 61,
-      "retrieved_titles": []
-    },
-    {
-      "id": "rag_009",
-      "question": "查某段时间的数据，过滤条件怎么写？",
-      "expected_title": "query-conventions",
-      "expected_content": "order_date >= 'YYYY-MM-DD' AND order_date < 'YYYY-MM-DD'",
-      "hits_at": {
-        "1": false,
-        "3": true,
-        "5": true
-      },
-      "latencyMs": 46,
+      "latencyMs": 65,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:ops-runbook",
-        "文档:query-conventions",
         "文档:troubleshooting-orders"
       ]
     },
     {
-      "id": "rag_010",
-      "question": "用户没说时间范围，该怎么处理？",
-      "expected_title": "query-conventions",
-      "expected_content": "如果用户没有指定，先追问，不随意默认最近一个月",
+      "id": "rag_007",
+      "question": "Redis 的任务流是什么？",
+      "difficulty": "easy",
+      "expected_title": "ops-runbook",
+      "expected_content": "任务输入流 task:input",
       "hits_at": {
         "1": true,
         "3": true,
         "5": true
       },
       "latencyMs": 61,
+      "retrieved_titles": [
+        "文档:data-dictionary",
+        "文档:ops-runbook"
+      ]
+    },
+    {
+      "id": "rag_008",
+      "question": "怎么确认服务是正常的？",
+      "difficulty": "easy",
+      "expected_title": "ops-runbook",
+      "expected_content": "检查 /api/health，确认 postgres 和 redis 均为 UP",
+      "hits_at": {
+        "1": true,
+        "3": true,
+        "5": true
+      },
+      "latencyMs": 45,
+      "retrieved_titles": [
+        "文档:ops-runbook",
+        "文档:troubleshooting-orders"
+      ]
+    },
+    {
+      "id": "rag_009",
+      "question": "时间过滤条件怎么写？",
+      "difficulty": "easy",
+      "expected_title": "query-conventions",
+      "expected_content": "order_date >= 'YYYY-MM-DD' AND order_date < 'YYYY-MM-DD'",
+      "hits_at": {
+        "1": true,
+        "3": true,
+        "5": true
+      },
+      "latencyMs": 48,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:ops-runbook",
@@ -215,16 +224,36 @@
       ]
     },
     {
-      "id": "rag_011",
-      "question": "一次查询最多能返回多少行？",
+      "id": "rag_010",
+      "question": "用户没指定日期范围怎么办？",
+      "difficulty": "easy",
       "expected_title": "query-conventions",
-      "expected_content": "结果行数默认不超过 1000",
+      "expected_content": "如果用户没有指定，先追问，不随意默认最近一个月",
       "hits_at": {
         "1": true,
         "3": true,
         "5": true
       },
-      "latencyMs": 64,
+      "latencyMs": 46,
+      "retrieved_titles": [
+        "文档:data-dictionary",
+        "文档:ops-runbook",
+        "文档:query-conventions",
+        "文档:troubleshooting-orders"
+      ]
+    },
+    {
+      "id": "rag_011",
+      "question": "查询结果的行数上限是多少？",
+      "difficulty": "easy",
+      "expected_title": "query-conventions",
+      "expected_content": "结果行数默认不超过 1000",
+      "hits_at": {
+        "1": false,
+        "3": true,
+        "5": true
+      },
+      "latencyMs": 62,
       "retrieved_titles": [
         "文档:ops-runbook",
         "文档:query-conventions",
@@ -233,33 +262,16 @@
     },
     {
       "id": "rag_012",
-      "question": "做分组统计的时候必须写什么？",
+      "question": "聚合查询要注意什么？",
+      "difficulty": "easy",
       "expected_title": "query-conventions",
       "expected_content": "聚合查询必须使用 GROUP BY",
       "hits_at": {
-        "1": false,
+        "1": true,
         "3": true,
         "5": true
       },
-      "latencyMs": 60,
-      "retrieved_titles": [
-        "文档:data-dictionary",
-        "文档:query-conventions",
-        "文档:reporting-rules",
-        "文档:troubleshooting-orders"
-      ]
-    },
-    {
-      "id": "rag_013",
-      "question": "月度报表按什么时间粒度汇总？",
-      "expected_title": "reporting-rules",
-      "expected_content": "月份格式 YYYY-MM",
-      "hits_at": {
-        "1": false,
-        "3": false,
-        "5": true
-      },
-      "latencyMs": 62,
+      "latencyMs": 59,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:ops-runbook",
@@ -268,8 +280,26 @@
       ]
     },
     {
+      "id": "rag_013",
+      "question": "月报按什么分组？",
+      "difficulty": "easy",
+      "expected_title": "reporting-rules",
+      "expected_content": "月份格式 YYYY-MM",
+      "hits_at": {
+        "1": true,
+        "3": true,
+        "5": true
+      },
+      "latencyMs": 62,
+      "retrieved_titles": [
+        "文档:query-conventions",
+        "文档:reporting-rules"
+      ]
+    },
+    {
       "id": "rag_014",
-      "question": "同比和环比这两个说法怎么区分？",
+      "question": "同比和环比的区别？",
+      "difficulty": "easy",
       "expected_title": "reporting-rules",
       "expected_content": "当前期间与上一相同期间对比",
       "hits_at": {
@@ -277,14 +307,15 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 60,
+      "latencyMs": 62,
       "retrieved_titles": [
         "文档:reporting-rules"
       ]
     },
     {
       "id": "rag_015",
-      "question": "分析趋势的时候应该先看什么？",
+      "question": "趋势分析应该先看什么？",
+      "difficulty": "easy",
       "expected_title": "reporting-rules",
       "expected_content": "趋势分析优先输出时间序列，再计算变化率",
       "hits_at": {
@@ -292,14 +323,15 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 44,
+      "latencyMs": 24,
       "retrieved_titles": [
         "文档:reporting-rules"
       ]
     },
     {
       "id": "rag_016",
-      "question": "各品类占了多少份额，用什么图展示？",
+      "question": "占比用什么图表展示？",
+      "difficulty": "easy",
       "expected_title": "reporting-rules",
       "expected_content": "占比/结构：饼图",
       "hits_at": {
@@ -307,40 +339,42 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 62,
+      "latencyMs": 33,
       "retrieved_titles": [
-        "文档:data-dictionary",
+        "文档:query-conventions",
         "文档:reporting-rules"
       ]
     },
     {
       "id": "rag_017",
-      "question": "查出来的结果是空的，可能哪里出了问题？",
+      "question": "查询结果为空怎么排查？",
+      "difficulty": "easy",
       "expected_title": "troubleshooting-orders",
       "expected_content": "检查时间范围是否超出数据区间",
       "hits_at": {
-        "1": false,
-        "3": false,
-        "5": false
+        "1": true,
+        "3": true,
+        "5": true
       },
-      "latencyMs": 43,
+      "latencyMs": 48,
       "retrieved_titles": [
-        "文档:data-dictionary",
         "文档:ops-runbook",
+        "文档:query-conventions",
         "文档:troubleshooting-orders"
       ]
     },
     {
       "id": "rag_018",
-      "question": "订单金额和卖出去的钱是一回事吗？",
+      "question": "订单金额和销售额的区别？",
+      "difficulty": "easy",
       "expected_title": "troubleshooting-orders",
       "expected_content": "明细销售额看 order_items.quantity * order_items.price",
       "hits_at": {
         "1": false,
-        "3": false,
+        "3": true,
         "5": true
       },
-      "latencyMs": 52,
+      "latencyMs": 65,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:reporting-rules",
@@ -349,23 +383,25 @@
     },
     {
       "id": "rag_019",
-      "question": "平均一个客户大概花了多少钱？",
+      "question": "客单价怎么计算？",
+      "difficulty": "easy",
       "expected_title": "troubleshooting-orders",
       "expected_content": "sum(orders.amount) / count(distinct customer_id)",
       "hits_at": {
         "1": false,
-        "3": false,
-        "5": false
+        "3": true,
+        "5": true
       },
-      "latencyMs": 29,
+      "latencyMs": 62,
       "retrieved_titles": [
         "文档:data-dictionary",
-        "文档:query-conventions"
+        "文档:troubleshooting-orders"
       ]
     },
     {
       "id": "rag_020",
-      "question": "退回去的钱应该怎么统计？",
+      "question": "退款金额怎么统计？",
+      "difficulty": "easy",
       "expected_title": "troubleshooting-orders",
       "expected_content": "退款金额单独过滤 status = 'refunded'",
       "hits_at": {
@@ -373,15 +409,17 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 28,
+      "latencyMs": 62,
       "retrieved_titles": [
         "文档:data-dictionary",
+        "文档:reporting-rules",
         "文档:troubleshooting-orders"
       ]
     },
     {
       "id": "rag_021",
       "question": "商品打折卖的时候，销售额按什么价格算？",
+      "difficulty": "hard",
       "expected_title": "troubleshooting-orders",
       "expected_content": "促销场景下 order_items.price 可能低于 products.price，以明细价格为准",
       "hits_at": {
@@ -389,7 +427,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 36,
+      "latencyMs": 64,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:reporting-rules",
@@ -399,6 +437,7 @@
     {
       "id": "rag_022",
       "question": "有多大比例的订单最后退款了？",
+      "difficulty": "hard",
       "expected_title": "troubleshooting-orders",
       "expected_content": "退款订单数 / 全部订单数",
       "hits_at": {
@@ -406,7 +445,7 @@
         "3": false,
         "5": true
       },
-      "latencyMs": 43,
+      "latencyMs": 47,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:reporting-rules",
@@ -416,6 +455,7 @@
     {
       "id": "rag_023",
       "question": "任务彻底失败了，去哪里看原因？",
+      "difficulty": "hard",
       "expected_title": "ops-runbook",
       "expected_content": "死信队列 task:dlq",
       "hits_at": {
@@ -423,7 +463,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 34,
+      "latencyMs": 47,
       "retrieved_titles": [
         "文档:ops-runbook"
       ]
@@ -431,6 +471,7 @@
     {
       "id": "rag_024",
       "question": "服务重启之后有个审批一直卡着不往下走，怎么办？",
+      "difficulty": "hard",
       "expected_title": "ops-runbook",
       "expected_content": "Worker 重启过会导致内存 checkpoint 丢失",
       "hits_at": {
@@ -438,7 +479,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 46,
+      "latencyMs": 61,
       "retrieved_titles": [
         "文档:ops-runbook"
       ]
@@ -446,6 +487,7 @@
     {
       "id": "rag_025",
       "question": "两张表连起来之后行数变多了，可能是什么原因？",
+      "difficulty": "hard",
       "expected_title": "troubleshooting-orders",
       "expected_content": "漏掉 order_items.order_id = orders.id",
       "hits_at": {
@@ -463,6 +505,7 @@
     {
       "id": "rag_026",
       "question": "按周统计的报告，时间该用什么格式表示？",
+      "difficulty": "hard",
       "expected_title": "reporting-rules",
       "expected_content": "ISO 周格式 YYYY-IW",
       "hits_at": {
@@ -470,7 +513,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 45,
+      "latencyMs": 60,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:ops-runbook",
@@ -481,6 +524,7 @@
     {
       "id": "rag_027",
       "question": "客单价到底是怎么定义的？",
+      "difficulty": "hard",
       "expected_title": "data-dictionary",
       "expected_content": "客单价 = sum(orders.amount) / count(distinct customers.id)",
       "hits_at": {
@@ -488,7 +532,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 46,
+      "latencyMs": 43,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:troubleshooting-orders"
@@ -497,6 +541,7 @@
     {
       "id": "rag_028",
       "question": "从零开始把整套环境搭起来需要几步？",
+      "difficulty": "hard",
       "expected_title": "ops-runbook",
       "expected_content": "docker compose up -d db redis 启动基础设施",
       "hits_at": {
@@ -504,7 +549,7 @@
         "3": false,
         "5": false
       },
-      "latencyMs": 46,
+      "latencyMs": 24,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:ops-runbook",
@@ -514,6 +559,7 @@
     {
       "id": "rag_029",
       "question": "分组统计之后最多能返回多少条？",
+      "difficulty": "hard",
       "expected_title": "query-conventions",
       "expected_content": "结果行数默认不超过 1000",
       "hits_at": {
@@ -521,7 +567,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 43,
+      "latencyMs": 58,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:query-conventions",
@@ -532,6 +578,7 @@
     {
       "id": "rag_030",
       "question": "客户和订单之间是什么关系？",
+      "difficulty": "hard",
       "expected_title": "data-dictionary",
       "expected_content": "orders.customer_id = customers.id",
       "hits_at": {
@@ -539,7 +586,7 @@
         "3": true,
         "5": true
       },
-      "latencyMs": 34,
+      "latencyMs": 25,
       "retrieved_titles": [
         "文档:data-dictionary",
         "文档:reporting-rules",
