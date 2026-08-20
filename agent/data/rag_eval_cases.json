@@ -18,5 +18,15 @@
   {"id": "rag_017", "question": "查询结果为空怎么排查？", "expected_title": "troubleshooting-orders", "difficulty": "easy"},
   {"id": "rag_018", "question": "订单金额和明细销售额有什么区别？", "expected_title": "troubleshooting-orders", "difficulty": "medium"},
   {"id": "rag_019", "question": "客单价怎么计算？", "expected_title": "troubleshooting-orders", "difficulty": "medium"},
-  {"id": "rag_020", "question": "退款金额怎么查？", "expected_title": "troubleshooting-orders", "difficulty": "easy"}
+  {"id": "rag_020", "question": "退款金额怎么查？", "expected_title": "troubleshooting-orders", "difficulty": "easy"},
+  {"id": "rag_021", "question": "促销价和原价不一样时，销售额以哪个价格为准？", "expected_title": "troubleshooting-orders", "difficulty": "hard"},
+  {"id": "rag_022", "question": "退款率是怎么算的？", "expected_title": "troubleshooting-orders", "difficulty": "medium"},
+  {"id": "rag_023", "question": "任务进了死信队列说明什么？", "expected_title": "ops-runbook", "difficulty": "hard"},
+  {"id": "rag_024", "question": "worker 重启之后审批任务卡住不继续了，怎么处理？", "expected_title": "ops-runbook", "difficulty": "hard"},
+  {"id": "rag_025", "question": "订单明细 join 订单之后数据翻倍，可能是什么原因？", "expected_title": "troubleshooting-orders", "difficulty": "hard"},
+  {"id": "rag_026", "question": "周报的时间分组格式是什么？", "expected_title": "reporting-rules", "difficulty": "medium"},
+  {"id": "rag_027", "question": "客单价按什么口径计算？", "expected_title": "data-dictionary", "difficulty": "medium"},
+  {"id": "rag_028", "question": "整个系统从零启动的步骤是什么？", "expected_title": "ops-runbook", "difficulty": "easy"},
+  {"id": "rag_029", "question": "聚合查询的结果最多能返回多少行？", "expected_title": "query-conventions", "difficulty": "easy"},
+  {"id": "rag_030", "question": "客户和订单之间的关联关系是什么？", "expected_title": "data-dictionary", "difficulty": "medium"}
 ]
