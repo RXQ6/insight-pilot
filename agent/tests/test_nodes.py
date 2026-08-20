@@ -14,9 +14,11 @@ class FakeLLM:
         self.content = content
         self.usage = usage or {"prompt_tokens": 10, "completion_tokens": 5}
         self.last_messages = None
+        self.all_messages = []
 
     def invoke(self, messages):
         self.last_messages = messages
+        self.all_messages.append(messages)
         return SimpleNamespace(content=self.content, usage_metadata=self.usage)
 
 
@@ -168,9 +170,12 @@ class TestAgentStep(unittest.TestCase):
         llm = FakeLLM("```sql\nSELECT count(*) FROM orders\n```")
         with mock.patch.object(nodes, "_llm", return_value=llm), patch_run_tool():
             nodes.agent_step(make_state(question="4月订单总数", fix_hint="上次 SQL：SELECT * FROM orders\n错误：列不存在"))
-        joined = "".join(m["content"] for m in llm.last_messages if m["role"] == "user")
-        self.assertIn("上次尝试执行失败", joined)
-        self.assertIn("上次 SQL", joined)
+        # 检查 SQL 生成轮（第一次 invoke）的 user 消息包含 fix_hint
+        first_user = "".join(
+            m["content"] for m in llm.all_messages[0] if m["role"] == "user"
+        )
+        self.assertIn("上次尝试执行失败", first_user)
+        self.assertIn("上次 SQL", first_user)
 
 
 class TestReflect(unittest.TestCase):
@@ -225,6 +230,86 @@ class TestAnswer(unittest.TestCase):
         ):
             out = nodes.answer(make_state(cost_cap_cny=0.2, query_result=[{"sql": "s", "result": "x"}]))
         self.assertEqual(out["chart_spec"]["type"], "bar")
+
+
+class SequenceLLM:
+    """按调用顺序返回不同内容的假 LLM（用于 ReAct 多轮决策测试）。"""
+
+    def __init__(self, contents, usages=None):
+        self.contents = list(contents)
+        self.usages = usages or [None] * len(contents)
+        self.calls = 0
+
+    def invoke(self, messages):
+        idx = min(self.calls, len(self.contents) - 1)
+        self.calls += 1
+        usage = self.usages[idx] or {"prompt_tokens": 10, "completion_tokens": 5}
+        return SimpleNamespace(content=self.contents[idx], usage_metadata=usage)
+
+
+class TestReactLoop(unittest.TestCase):
+    def test_parse_action(self):
+        self.assertEqual(nodes._parse_action('{"action": "finish", "note": "ok"}')["action"], "finish")
+        self.assertEqual(
+            nodes._parse_action('```json\n{"action": "tool_call", "tool": "x"}\n```')["tool"], "x"
+        )
+        self.assertIsNone(nodes._parse_action("```sql\nSELECT 1\n```"))
+        self.assertIsNone(nodes._parse_action("不是 JSON"))
+
+    def test_react_loop_tool_call_then_finish(self):
+        llm = SequenceLLM([
+            '{"action": "tool_call", "tool": "execute_python", "arguments": {"code": "1+1"}}',
+            '{"action": "finish", "note": "done"}',
+        ])
+        with mock.patch.object(nodes, "_llm", return_value=llm), mock.patch.object(
+            nodes, "run_tool", side_effect=lambda name, **kw: "2" if name == "execute_python" else "?"
+        ):
+            out = nodes._react_loop(
+                {"question": "6月环比", "step_count": 2, "max_steps": 8, "usage": [], "history": []},
+                '{"rows": [[100]]}', "SELECT 1",
+            )
+        self.assertEqual(len(out["query_result"]), 2)
+        self.assertEqual(out["tool_calls"][1]["name"], "execute_python")
+        self.assertEqual(out["step_count"], 4)  # 首轮 + 1 次工具 + 1 次 finish
+        self.assertEqual(len(out["usage"]), 2)
+
+    def test_react_loop_finish_immediately(self):
+        llm = SequenceLLM(['{"action": "finish", "note": "enough"}'])
+        with mock.patch.object(nodes, "_llm", return_value=llm):
+            out = nodes._react_loop(
+                {"question": "q", "step_count": 0, "max_steps": 8, "usage": [], "history": []}, "r", "s"
+            )
+        self.assertEqual(len(out["query_result"]), 1)
+        self.assertEqual(out["step_count"], 1)
+
+    def test_react_loop_respects_max_steps(self):
+        llm = SequenceLLM(['{"action": "tool_call", "tool": "query_database", "arguments": {"sql": "S"}}'] * 10)
+        with mock.patch.object(nodes, "_llm", return_value=llm), mock.patch.object(
+            nodes, "run_tool", return_value="ok"
+        ):
+            out = nodes._react_loop(
+                {"question": "q", "step_count": 6, "max_steps": 8, "usage": [], "history": []}, "r", "s"
+            )
+        self.assertLessEqual(out["step_count"], 8)
+
+    def test_agent_step_react_loop_end_to_end(self):
+        llm = SequenceLLM([
+            "```sql\nSELECT sum(amount) AS total FROM orders\n```",
+            '{"action": "tool_call", "tool": "execute_python", "arguments": {"code": "total * 1.1"}}',
+            '{"action": "finish", "note": "done"}',
+        ])
+        with mock.patch.object(nodes, "_llm", return_value=llm), mock.patch.object(
+            nodes,
+            "run_tool",
+            side_effect=lambda name, arguments=None, **kw: (
+                '{"columns": ["total"], "rows": [[100]]}' if name == "query_database" else "110.0"
+            ),
+        ):
+            out = nodes.agent_step(make_state(question="6月销售额增长10%后是多少"))
+        self.assertEqual(len(out["query_result"]), 2)
+        self.assertEqual(out["tool_calls"][1]["name"], "execute_python")
+        self.assertEqual(out["step_count"], 2)  # 首轮查询 + 1 次工具调用
+        self.assertEqual(out["sql"], "SELECT sum(amount) AS total FROM orders")
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ cd agent
 
 ## 核心亮点
 
-1. **LangGraph 状态机 Agent**：意图分类 / 规划 / 工具循环 / 反思 / 回答五节点条件路由；checkpoint + interrupt/resume 实现**人工确认断点恢复**——审批被拒时查询不执行
+1. **LangGraph 状态机 + ReAct 工具循环**：意图分类 / 规划 / 工具循环 / 反思 / 回答五节点条件路由；`agent_step` 内 LLM 自主决策"调用工具还是 finish"（可执行 Python 计算 / 补充查询 / 生成图表），带步数与成本预算兜底；checkpoint + interrupt/resume 实现**人工确认断点恢复**——审批被拒时查询不执行
 2. **自我纠错（reflect）**：SQL 执行失败时把错误回喂给模型重新生成（fix_hint 机制），评测驱动 prompt 迭代；期间发现并修复了 `Annotated[list, operator.add]` 无法清空字段导致的反思死循环
 3. **异步任务架构**：Redis Streams 消费组解耦任务提交与执行，SSE 逐 token 流式推送；失败任务进**死信队列（DLQ）**可查询；每任务成本上限强制中断
 4. **纵深安全**：数据库只读账号 + 事务只读 + SQL 关键字拦截 + Docker 无网络沙箱 + 多租户表隔离；主动发现并修复任务/审批接口越权（IDOR）
@@ -40,7 +40,7 @@ cd agent
 ## 功能
 
 - 自然语言数据分析：查询、对比、趋势、图表推荐
-- LangGraph 自主流程：意图分类、规划、工具循环、反思、回答
+- LangGraph 自主流程：意图分类、规划、ReAct 工具循环（LLM 自主选工具）、反思、回答
 - 工具层：只读 SQL、Python 沙箱、ECharts 图表、知识库 RAG、CSV 结果导出
 - Java 控制面：JWT 鉴权、会话与任务管理、Redis Streams、SSE 流式推送
 - React 工作台：流式对话、图表、工具轨迹、人工确认、文件下载

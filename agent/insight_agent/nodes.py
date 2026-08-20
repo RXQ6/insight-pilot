@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.types import interrupt
 
 from .config import settings
-from .prompts import ANSWER_SYSTEM, CHART_SYSTEM, INTENT_SYSTEM, PLAN_SYSTEM, SQL_SYSTEM
+from .prompts import ANSWER_SYSTEM, CHART_SYSTEM, INTENT_SYSTEM, PLAN_SYSTEM, REACT_SYSTEM, SQL_SYSTEM
 from .tools import run_tool
 from .tools.export import export_csv, wants_export
 
@@ -227,7 +227,10 @@ def agent_step(state: dict) -> dict:
             "step_count": step_count + 1,
             "usage": usage,
         }
-    tool_calls = [{"name": "query_database", "arguments": {"sql": sql}, "status": "success"}]
+
+    # ReAct 决策循环：LLM 判断是否需要继续调用工具（execute_python/补充查询等）
+    loop = _react_loop(state, result, sql)
+    tool_calls = loop["tool_calls"]
     file_payload = None
     if wants_export(state["question"]):
         try:
@@ -237,11 +240,83 @@ def agent_step(state: dict) -> dict:
             tool_calls.append({"name": "export_csv", "arguments": {"sql": sql}, "status": "error", "output": str(exc)})
     return {
         "sql": sql,
-        "query_result": [{"sql": sql, "result": result}],
+        "query_result": loop["query_result"],
         "file": file_payload,
         "tool_calls": tool_calls,
-        "step_count": step_count + 1,
+        "step_count": loop["step_count"],
+        "usage": usage + loop["usage"],
+    }
+
+
+def _parse_action(text: str) -> dict | None:
+    """解析 ReAct 循环中 LLM 输出的动作 JSON：{"action": "tool_call"|"finish", ...}"""
+    try:
+        cleaned = (text or "").strip().strip("```json").strip("```").strip()
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict) and parsed.get("action") in ("tool_call", "finish"):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+    return None
+
+
+def _react_loop(state: dict, first_result: str, sql: str) -> dict:
+    """ReAct 决策循环：LLM 自主决定继续调用工具还是 finish。
+
+    返回 {"query_result", "tool_calls", "usage", "step_count"}。
+    首轮查询结果已进入循环上下文；循环受 tool_loop_limit / max_steps / 预算三重兜底。
+    """
+    max_steps = state.get("max_steps")
+    if max_steps is None:
+        max_steps = settings.max_steps
+    step_count = state.get("step_count", 0) + 1  # 首轮查询占 1 步
+    query_result = [{"sql": sql, "result": first_result}]
+    tool_calls = [{"name": "query_database", "arguments": {"sql": sql}, "status": "success"}]
+    usage: list = []
+    history = _history_text(state)
+    observations = f"问题：{state['question']}"
+    if history:
+        observations += f"\n历史对话：\n{history}"
+    observations += f"\n\n首次查询 SQL：\n{sql}\n\n查询结果：\n{first_result[:4_000]}"
+
+    for _ in range(settings.tool_loop_limit):
+        if step_count >= max_steps:
+            break
+        response = _llm().invoke(
+            [
+                {"role": "system", "content": REACT_SYSTEM},
+                {"role": "user", "content": observations},
+            ]
+        )
+        usage += _usage(response)
+        if _budget_exceeded(state, usage):
+            break
+        action = _parse_action(response.content or "")
+        if not action or action.get("action") == "finish":
+            break
+
+        tool = str(action.get("tool") or "")
+        arguments = action.get("arguments") or {}
+        try:
+            tool_result = run_tool(tool, arguments)
+        except Exception as exc:  # noqa: BLE001
+            tool_result = f"工具执行失败：{exc}"
+        text_result = str(tool_result)
+        status = "success" if not text_result.startswith("错误") else "error"
+        tool_calls.append(
+            {"name": tool, "arguments": arguments, "status": status, "output": text_result[:200]}
+        )
+        query_result.append(
+            {"tool": tool, "arguments": arguments, "result": text_result[: settings.max_tool_output_chars]}
+        )
+        observations += f"\n\n[工具 {tool} 执行结果]\n{text_result[:4_000]}"
+        step_count += 1
+
+    return {
+        "query_result": query_result,
+        "tool_calls": tool_calls,
         "usage": usage,
+        "step_count": step_count,
     }
 
 
