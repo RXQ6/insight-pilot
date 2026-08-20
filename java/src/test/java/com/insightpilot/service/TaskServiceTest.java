@@ -8,6 +8,7 @@ import com.insightpilot.entity.Task;
 import com.insightpilot.producer.TaskProducer;
 import com.insightpilot.repository.AuditLogRepository;
 import com.insightpilot.repository.ChatSessionRepository;
+import com.insightpilot.repository.FeedbackRepository;
 import com.insightpilot.repository.MessageRepository;
 import com.insightpilot.repository.TaskRepository;
 import com.insightpilot.repository.ToolCallLogRepository;
@@ -56,7 +57,8 @@ class TaskServiceTest {
                 taskProducer,
                 auditService,
                 new ObjectMapper(),
-                redisTemplate);
+                redisTemplate,
+                mock(FeedbackRepository.class));
         ReflectionTestUtils.setField(taskService, "dlqStream", "task:dlq");
     }
 
