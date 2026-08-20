@@ -201,7 +201,39 @@ class TestRouting(unittest.TestCase):
         # 修复死循环的关键：即使 errors 残留，有 final_answer 也必须去 answer
         self.assertEqual(nodes.route_after_agent({"final_answer": "done", "errors": ["x"]}), "answer")
         self.assertEqual(nodes.route_after_agent({"errors": ["x"]}), "reflect")
-        self.assertEqual(nodes.route_after_agent({}), "answer")
+        self.assertEqual(nodes.route_after_agent({}), "verify")
+
+    def test_plan_steps_drive_agent_step(self):
+        # plan 执行打通：还有未执行步骤 -> 回 agent_step；全部执行完 -> verify
+        self.assertEqual(nodes.route_after_agent({"plan": ["a", "b"], "current_step": 0}), "agent_step")
+        self.assertEqual(nodes.route_after_agent({"plan": ["a", "b"], "current_step": 1}), "agent_step")
+        self.assertEqual(nodes.route_after_agent({"plan": ["a", "b"], "current_step": 2}), "verify")
+        self.assertEqual(nodes.route_after_agent({"plan": [], "current_step": 0}), "verify")
+
+    def test_verify_routing(self):
+        self.assertEqual(nodes.route_after_verify({"errors": ["x"]}), "reflect")
+        self.assertEqual(nodes.route_after_verify({}), "answer")
+
+
+class TestVerify(unittest.TestCase):
+    def test_pass_on_normal_result(self):
+        out = nodes.verify(make_state(query_result=[{"sql": "s", "result": '{"rows": [[1]]}'}]))
+        self.assertEqual(out["errors"], [])
+        self.assertEqual(out["verify_note"], "校验通过")
+
+    def test_detect_error_prefix(self):
+        out = nodes.verify(make_state(query_result=[{"sql": "s", "result": "错误：只允许 SELECT"}]))
+        self.assertNotEqual(out["errors"], [])
+        self.assertIn("只允许", out["verify_note"])
+
+    def test_no_result_is_issue(self):
+        out = nodes.verify(make_state(query_result=[]))
+        self.assertNotEqual(out["errors"], [])
+
+    def test_empty_rows_does_not_block(self):
+        # 空结果只提示不阻断（合法查询可能返回空，例如零销量商品）
+        out = nodes.verify(make_state(query_result=[{"sql": "s", "result": '{"rows": []}'}]))
+        self.assertEqual(out["errors"], [])
 
     def test_max_steps_clears_errors(self):
         with mock.patch.object(

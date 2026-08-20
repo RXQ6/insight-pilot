@@ -4,7 +4,17 @@ from typing import Annotated, TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
-from .nodes import agent_step, answer, intent_classify, plan, reflect, route_after_agent, route_after_intent
+from .nodes import (
+    agent_step,
+    answer,
+    intent_classify,
+    plan,
+    reflect,
+    route_after_agent,
+    route_after_intent,
+    route_after_verify,
+    verify,
+)
 
 
 class AgentState(TypedDict):
@@ -29,6 +39,7 @@ class AgentState(TypedDict):
     usage: Annotated[list, operator.add]
     reflect_note: str | None
     fix_hint: str | None
+    verify_note: str | None
 
 
 def build_graph():
@@ -37,6 +48,7 @@ def build_graph():
     graph.add_node("plan", plan)
     graph.add_node("agent_step", agent_step)
     graph.add_node("reflect", reflect)
+    graph.add_node("verify", verify)
     graph.add_node("answer", answer)
 
     graph.set_entry_point("intent_classify")
@@ -49,9 +61,14 @@ def build_graph():
     graph.add_conditional_edges(
         "agent_step",
         route_after_agent,
-        {"reflect": "reflect", "answer": "answer"},
+        {"reflect": "reflect", "verify": "verify", "agent_step": "agent_step", "answer": "answer"},
     )
     graph.add_edge("reflect", "agent_step")
+    graph.add_conditional_edges(
+        "verify",
+        route_after_verify,
+        {"reflect": "reflect", "answer": "answer"},
+    )
     graph.add_edge("answer", END)
 
     return graph.compile(checkpointer=MemorySaver())

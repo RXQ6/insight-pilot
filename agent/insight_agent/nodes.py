@@ -174,10 +174,17 @@ def agent_step(state: dict) -> dict:
     enum_values = run_tool("get_enum_values", {"user_id": state.get("user_id", "")})
     history = _history_text(state)
     fix_hint = state.get("fix_hint")
+    plan_steps = state.get("plan") or []
+    current_step = state.get("current_step") or 0
     user_content = (
         f"表结构：\n{schema}\n\n字段取值示例：\n{enum_values}\n\n"
         f"问题：{state['question']}\n请生成可执行 SQL。"
     )
+    if current_step < len(plan_steps):
+        # plan 执行打通：把当前步骤指令注入 SQL 生成
+        user_content += (
+            f"\n当前执行步骤（第 {current_step + 1}/{len(plan_steps)} 步）：{plan_steps[current_step]}"
+        )
     if fix_hint:
         user_content += (
             f"\n\n注意：上次尝试执行失败，请根据以下错误修正后重新生成 SQL"
@@ -244,8 +251,32 @@ def agent_step(state: dict) -> dict:
         "file": file_payload,
         "tool_calls": tool_calls,
         "step_count": loop["step_count"],
+        "current_step": (state.get("current_step") or 0) + 1,
         "usage": usage + loop["usage"],
     }
+
+
+def verify(state: dict) -> dict:
+    """结果校验节点：检查查询结果是否存在硬错误（错误前缀/无结果），空结果仅提示不阻断。
+
+    校验不通过时返回 errors 交给 reflect 纠错重试，避免"模型说什么就返回什么"。
+    """
+    query_result = state.get("query_result") or []
+    issues = []
+    if not query_result:
+        issues.append("没有任何查询结果，请重新尝试")
+    else:
+        for item in query_result[-3:]:
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("result", ""))
+            if text.startswith("错误"):
+                issues.append(text[:200])
+            elif "truncated" in text and '"truncated": true' in text:
+                issues.append("查询结果被截断（超过行数上限），请缩小范围重试")
+    if issues:
+        return {"errors": issues, "verify_note": "校验未通过：" + "；".join(issues)}
+    return {"verify_note": "校验通过", "errors": []}
 
 
 def _parse_action(text: str) -> dict | None:
@@ -374,6 +405,16 @@ def route_after_agent(state: dict) -> str:
     # final_answer 已生成则直接收尾，避免残留 errors 导致 reflect 死循环
     if state.get("final_answer"):
         return "answer"
+    if state.get("errors"):
+        return "reflect"
+    # plan 执行打通：还有未执行的步骤则继续 agent_step
+    current = state.get("current_step") or 0
+    if current < len(state.get("plan") or []):
+        return "agent_step"
+    return "verify"
+
+
+def route_after_verify(state: dict) -> str:
     if state.get("errors"):
         return "reflect"
     return "answer"
