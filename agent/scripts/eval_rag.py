@@ -39,12 +39,17 @@ def main() -> None:
         started = time.time()
         chunks = retrieve_top_k(case["question"], top_k=max_k)
         elapsed_ms = int((time.time() - started) * 1000)
+        # 内容级判定：期望命中的具体段落短语是否出现在检索结果中（比文档级更严格）
         results.append(
             {
                 "id": case["id"],
                 "question": case["question"],
                 "expected_title": case["expected_title"],
-                "hits_at": {k: any(case["expected_title"] in c for c in chunks[:k]) for k in ks},
+                "expected_content": case.get("expected_content", ""),
+                "hits_at": {
+                    k: any(case.get("expected_content", case["expected_title"]) in c for c in chunks[:k])
+                    for k in ks
+                },
                 "latencyMs": elapsed_ms,
                 "retrieved_titles": sorted(
                     {chunk.split("|")[1].split("]")[0] if "|" in chunk else "?" for chunk in chunks}
