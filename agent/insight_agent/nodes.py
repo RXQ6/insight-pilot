@@ -207,7 +207,17 @@ def agent_step(state: dict) -> dict:
         return {"errors": ["未能生成 SQL"], "step_count": step_count + 1, "usage": usage}
 
     needs_approval = (
-        any(keyword in state["question"] for keyword in ("导出", "全表", "所有字段所有行", "全部记录"))
+        any(
+            keyword in state["question"]
+            for keyword in (
+                # 大结果/批量操作
+                "导出", "全表", "所有字段所有行", "全部记录", "批量",
+                # 破坏性操作
+                "删除", "清空", "清除", "修改", "更新", "重置",
+                # 敏感数据/资金/合同
+                "手机号", "身份证", "隐私", "资金", "合同",
+            )
+        )
         or (
             re.search(r"\bselect\s+\*\b", sql, re.I)
             and not re.search(r"\blimit\b", sql, re.I)

@@ -121,6 +121,7 @@ public class ResultConsumer implements ApplicationRunner {
                         task.setTokenIn(node.path("tokenIn").asLong(0));
                         task.setTokenOut(node.path("tokenOut").asLong(0));
                         task.setCostCny(node.path("costCny").asDouble(0));
+                        task.setModel(node.path("model").asText(null));
                     } catch (Exception ignored) {
                         // metrics are optional
                     }

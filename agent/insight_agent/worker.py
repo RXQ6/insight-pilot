@@ -124,6 +124,7 @@ def _emit_updates(streams: RedisStreams, task_id: str, stream, started: float) -
                 "tokenIn": token_in,
                 "tokenOut": token_out,
                 "costCny": round(token_in * 0.000001 + token_out * 0.000002, 6),
+                "model": settings.llm_model,
             },
         )
     return state
