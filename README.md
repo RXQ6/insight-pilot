@@ -41,7 +41,7 @@ cd agent
 
 - 自然语言数据分析：查询、对比、趋势、图表推荐
 - LangGraph 自主流程：意图分类、规划、ReAct 工具循环（LLM 自主选工具）、反思、回答
-- 工具层：只读 SQL、Python 沙箱、ECharts 图表、知识库 RAG、CSV 结果导出
+- 工具层：只读 SQL、Python 沙箱、ECharts 图表、知识库 RAG（关键词+向量混合检索，recall@1 86.7%）、CSV 结果导出
 - Java 控制面：JWT 鉴权、会话与任务管理、Redis Streams、SSE 流式推送
 - React 工作台：流式对话、图表、工具轨迹、人工确认、文件下载
 - 多租户数据接入：示例数据开关 + CSV 上传，按用户建表隔离
